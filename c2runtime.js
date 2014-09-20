@@ -15950,6 +15950,18 @@ cr.getProjectModel = function() { return [
 	"Layout 2",
 	[
 	[
+		cr.plugins_.Touch,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
 		cr.plugins_.Sprite,
 		false,
 		true,
@@ -15973,18 +15985,6 @@ cr.getProjectModel = function() { return [
 		true,
 		false
 	]
-,	[
-		cr.plugins_.Touch,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
 	],
 	[
 	[
@@ -16005,10 +16005,11 @@ cr.getProjectModel = function() { return [
 			false,
 			7436548454663019,
 			[
-				["images/colors-sheet0.png", 16506, 1, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203125,-0.3203125,0.00390625,-0.453125,0.328125,-0.3203125,0.4609375,0.00390625,0.328125,0.328125,0.00390625,0.4609375,-0.3203125,0.328125,-0.453125,0.00390625],0],
-				["images/colors-sheet0.png", 16506, 259, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203125,-0.3203125,0.00390625,-0.453125,0.328125,-0.3203125,0.4609375,0.00390625,0.328125,0.328125,0.00390625,0.4609375,-0.3203125,0.328125,-0.453125,0.00390625],0],
-				["images/colors-sheet0.png", 16506, 517, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203125,-0.3203125,0.00390625,-0.453125,0.328125,-0.3203125,0.4609375,0.00390625,0.328125,0.328125,0.00390625,0.4609375,-0.3203125,0.328125,-0.453125,0.00390625],0],
-				["images/colors-sheet0.png", 16506, 1, 259, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.48046875,-0.48046875,0.48828125,-0.48046875,0.48828125,0.48828125,-0.48046875,0.48828125],0]
+				["images/colors-sheet0.png", 27996, 1, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
+				["images/colors-sheet0.png", 27996, 259, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
+				["images/colors-sheet0.png", 27996, 517, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
+				["images/colors-sheet0.png", 27996, 1, 259, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
+				["images/colors-sheet0.png", 27996, 259, 259, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0]
 			]
 			]
 		],
@@ -16056,7 +16057,7 @@ cr.getProjectModel = function() { return [
 			false,
 			1620413693031994,
 			[
-				["images/frame-sheet0.png", 812, 0, 0, 250, 250, 1, 0.5, 0.5,[],[],0]
+				["images/frame-sheet0.png", 155, 0, 0, 250, 250, 1, 0.5, 0.5,[],[],1]
 			]
 			]
 		],
@@ -16124,6 +16125,36 @@ cr.getProjectModel = function() { return [
 		[],
 		null
 	]
+,	[
+		"t6",
+		cr.plugins_.Sprite,
+		false,
+		[],
+		0,
+		0,
+		null,
+		[
+			[
+			"Default",
+			5,
+			false,
+			1,
+			0,
+			false,
+			6304198394113903,
+			[
+				["images/touchanim-sheet0.png", 20282, 0, 0, 256, 256, 1, 0.5, 0.5,[],[-0.3515619933605194,-0.3515619933605194,0,-0.5,0.3515629768371582,-0.3515619933605194,0.5,0,0.3515629768371582,0.3515629768371582,0,0.5,-0.3515619933605194,0.3515629768371582,-0.5,0],0]
+			]
+			]
+		],
+		[
+		],
+		false,
+		false,
+		1861017541765778,
+		[],
+		null
+	]
 	],
 	[
 	],
@@ -16141,7 +16172,7 @@ cr.getProjectModel = function() { return [
 			0,
 			8722530541249526,
 			true,
-			[240, 240, 240],
+			[245, 245, 245],
 			false,
 			1,
 			1,
@@ -16152,7 +16183,7 @@ cr.getProjectModel = function() { return [
 			0,
 			[
 			[
-				[120, 1120, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[120, 1120, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				0,
 				[
@@ -16167,7 +16198,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[120, 800, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[120, 800, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				4,
 				[
@@ -16182,7 +16213,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[120, 480, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[120, 480, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				8,
 				[
@@ -16197,7 +16228,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[120, 160, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[120, 160, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				12,
 				[
@@ -16212,7 +16243,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[360, 1120, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[360, 1120, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				1,
 				[
@@ -16227,7 +16258,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[360, 800, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[360, 800, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				2,
 				[
@@ -16242,7 +16273,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[360, 480, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[360, 480, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				3,
 				[
@@ -16257,7 +16288,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[360, 160, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[360, 160, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				5,
 				[
@@ -16272,7 +16303,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[600, 1120, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[600, 1120, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				7,
 				[
@@ -16287,7 +16318,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[600, 800, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[600, 800, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				9,
 				[
@@ -16302,7 +16333,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[600, 480, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[600, 480, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				10,
 				[
@@ -16317,9 +16348,24 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[600, 160, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[600, 160, 0, 220, 220, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				11,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[1724, -318, 0, 64, 64, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				6,
+				30,
 				[
 				],
 				[
@@ -16567,6 +16613,21 @@ cr.getProjectModel = function() { return [
 					1
 				]
 			]
+,			[
+				[1099, -57, 0, 64, 64, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				6,
+				31,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
 			],
 			[			]
 		]
@@ -16724,6 +16785,11 @@ cr.getProjectModel = function() { return [
 		"Event sheet 1",
 		[
 		[
+			2,
+			"Global",
+			false
+		]
+,		[
 			1,
 			"timer_time",
 			0,
@@ -16733,8 +16799,8 @@ false,false,2384339347298512,false
 ,		[
 			1,
 			"ColorsUID",
-			0,
-			0,
+			1,
+			"",
 false,false,7025973728427174,false
 		]
 ,		[
@@ -16873,6 +16939,22 @@ false,false,130635249387532,false
 				]
 			]
 ,			[
+				0,
+				cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+				null,
+				1153667826490494,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+				]
+			]
+,			[
 				-1,
 				cr.system_object.prototype.acts.AddVar,
 				null,
@@ -16922,11 +17004,8 @@ false,false,130635249387532,false
 ,				[
 					7,
 					[
-						20,
-						0,
-						cr.plugins_.Sprite.prototype.exps.UID,
-						false,
-						null
+						2,
+						""
 					]
 				]
 				]
@@ -17111,6 +17190,29 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					8067513189402161,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					2527375839468428,
@@ -17184,6 +17286,43 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					2687935528523386,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					6406038734196647,
@@ -17251,6 +17390,43 @@ false,false,130635249387532,false
 						[
 							0,
 							5
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					5675453968691159,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
 						]
 					]
 					]
@@ -17369,6 +17545,29 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					2885321849273931,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					7423153268924652,
@@ -17442,6 +17641,43 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					1326633623638604,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					2208784212703173,
@@ -17509,6 +17745,43 @@ false,false,130635249387532,false
 						[
 							0,
 							5
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					3819307522988404,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
 						]
 					]
 					]
@@ -17627,6 +17900,29 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					2425013857684899,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					7455159531278981,
@@ -17661,6 +17957,22 @@ false,false,130635249387532,false
 				]
 ,				[
 					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					9046432589386776,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+,				[
+					0,
 					cr.plugins_.Sprite.prototype.acts.SetSize,
 					null,
 					1076848799750736,
@@ -17683,17 +17995,38 @@ false,false,130635249387532,false
 					]
 				]
 ,				[
-					0,
-					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					-1,
+					cr.system_object.prototype.acts.SetVar,
 					null,
-					9046432589386776,
+					7344249193913072,
 					false
 					,[
 					[
-						0,
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
 						[
-							0,
-							2
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
 						]
 					]
 					]
@@ -17767,6 +18100,43 @@ false,false,130635249387532,false
 						[
 							0,
 							5
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					8170413821897035,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
 						]
 					]
 					]
@@ -17885,6 +18255,29 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					5046220259368547,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					864683579481657,
@@ -17958,6 +18351,43 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					9809878683649697,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					350844304855803,
@@ -18025,6 +18455,43 @@ false,false,130635249387532,false
 						[
 							0,
 							5
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					844243857883052,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
 						]
 					]
 					]
@@ -18143,6 +18610,29 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					203772081330234,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					6229483000580943,
@@ -18216,6 +18706,43 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					4230021525820206,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					1406159991255604,
@@ -18283,6 +18810,43 @@ false,false,130635249387532,false
 						[
 							0,
 							5
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					7223087507601364,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
 						]
 					]
 					]
@@ -18401,6 +18965,29 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					945366341423896,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					714453222816227,
@@ -18474,6 +19061,43 @@ false,false,130635249387532,false
 				]
 ,				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					8834904893259752,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.CreateObject,
 					null,
 					9722258934791508,
@@ -18541,6 +19165,43 @@ false,false,130635249387532,false
 						[
 							0,
 							5
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					705410670581857,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
 						]
 					]
 					]
@@ -18659,6 +19320,30 @@ false,false,130635249387532,false
 				]
 			]
 ,			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3305823461018737,
+				false
+				,[
+				[
+					8,
+					1
+				]
+,				[
+					0,
+					[
+						0,
+						4
+					]
+				]
+				]
+			]
+,			[
 				1,
 				cr.plugins_.Touch.prototype.cnds.IsTouchingObject,
 				null,
@@ -18689,26 +19374,6 @@ false,false,130635249387532,false
 					[
 						0,
 						3
-					]
-				]
-				]
-			]
-,			[
-				-1,
-				cr.system_object.prototype.acts.SetVar,
-				null,
-				7516828108664137,
-				false
-				,[
-				[
-					11,
-					"score"
-				]
-,				[
-					7,
-					[
-						0,
-						0
 					]
 				]
 				]
@@ -19026,30 +19691,6 @@ false,false,130635249387532,false
 				]
 				]
 			]
-,			[
-				0,
-				cr.plugins_.Sprite.prototype.cnds.CompareY,
-				null,
-				0,
-				false,
-				false,
-				false,
-				7469080118021891,
-				false
-				,[
-				[
-					8,
-					2
-				]
-,				[
-					0,
-					[
-						0,
-						800
-					]
-				]
-				]
-			]
 			],
 			[
 			[
@@ -19072,7 +19713,7 @@ false,false,130635249387532,false
 						]
 						,[
 							0,
-							10
+							15
 						]
 					]
 				]
@@ -19089,8 +19730,111 @@ false,false,130635249387532,false
 						]
 						,[
 							0,
-							10
+							15
 						]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			5702546975777712,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareY,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4139397127020518,
+				false
+				,[
+				[
+					8,
+					4
+				]
+,				[
+					0,
+					[
+						0,
+						800
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.acts.SetSize,
+				null,
+				8573553075189856,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						150
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						150
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			5962407367813955,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				6470022156192432,
+				false
+			]
+			],
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.acts.SetSize,
+				null,
+				5228929063373304,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						5
 					]
 				]
 				]
@@ -19103,10 +19847,15 @@ false,false,130635249387532,false
 		"Event sheet 2",
 		[
 		[
+			2,
+			"Global",
+			false
+		]
+,		[
 			1,
 			"colorvalue",
 			0,
-			0,
+			-1,
 false,false,4857271161516644,false
 		]
 ,		[
@@ -19158,7 +19907,306 @@ false,false,4857271161516644,false
 				]
 				]
 			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			3204767692596489,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				8383065173156452,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				1805048145815308,
+				false
+				,[
+				[
+					11,
+					"ColorsUID"
+				]
+,				[
+					7,
+					[
+						2,
+						""
+					]
+				]
+				]
+			]
 ,			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				1326908306144951,
+				false
+				,[
+				[
+					11,
+					"colorvalue"
+				]
+,				[
+					7,
+					[
+						0,
+						-1
+					]
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				5778035005123711,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.ForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					4186000308782434,
+					false
+					,[
+					[
+						4,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.TriggerOnce,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3317562054245012,
+					false
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					3615662181513827,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				5709568999788253,
+				[
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					3567888295710257,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Grow"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			6702086958760719,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.EveryTick,
+				null,
+				0,
+				false,
+				false,
+				false,
+				5707775786861747,
+				false
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.CompareVar,
+				null,
+				0,
+				false,
+				false,
+				false,
+				7150280366349939,
+				false
+				,[
+				[
+					11,
+					"colorvalue"
+				]
+,				[
+					8,
+					5
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.acts.SetSize,
+				null,
+				6018060567147414,
+				false
+				,[
+				[
+					0,
+					[
+						5,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.Width,
+							false,
+							null
+						]
+						,[
+							0,
+							15
+						]
+					]
+				]
+,				[
+					0,
+					[
+						5,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.Height,
+							false,
+							null
+						]
+						,[
+							0,
+							15
+						]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			7693302221954622,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3635329415894006,
+				false
+				,[
+				[
+					8,
+					2
+				]
+,				[
+					0,
+					[
+						0,
+						10
+					]
+				]
+				]
+			]
+			],
+			[
+			[
 				-1,
 				cr.system_object.prototype.acts.GoToLayout,
 				null,
@@ -19276,6 +20324,821 @@ false,false,4857271161516644,false
 		]
 		]
 	]
+,	[
+		"Global",
+		[
+		[
+			0,
+			[false, "Grow"],
+			false,
+			null,
+			1853861211812235,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.IsGroupActive,
+				null,
+				0,
+				false,
+				false,
+				false,
+				1853861211812235,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"Grow"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				3937615194786706,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.IsGroupActive,
+					null,
+					0,
+					false,
+					false,
+					false,
+					8047878317902397,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Grow"
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.TriggerOnce,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3513894292401729,
+					false
+				]
+				],
+				[
+				]
+				,[
+				[
+					0,
+					null,
+					false,
+					null,
+					7133305896171118,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.ForEach,
+						null,
+						0,
+						true,
+						false,
+						false,
+						807516141036349,
+						false
+						,[
+						[
+							4,
+							0
+						]
+						]
+					]
+,					[
+						-1,
+						cr.system_object.prototype.cnds.Compare,
+						null,
+						0,
+						false,
+						false,
+						false,
+						9943423609246681,
+						false
+						,[
+						[
+							7,
+							[
+								19,
+								cr.system_object.prototype.exps.find
+								,[
+[
+									23,
+									"ColorsUID"
+								]
+,[
+									19,
+									cr.system_object.prototype.exps.str
+									,[
+[
+										20,
+										0,
+										cr.plugins_.Sprite.prototype.exps.UID,
+										false,
+										null
+									]
+									]
+								]
+								]
+							]
+						]
+,						[
+							8,
+							5
+						]
+,						[
+							7,
+							[
+								0,
+								0
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						0,
+						cr.plugins_.Sprite.prototype.acts.SetSize,
+						null,
+						2231610369434258,
+						false
+						,[
+						[
+							0,
+							[
+								0,
+								1
+							]
+						]
+,						[
+							0,
+							[
+								0,
+								1
+							]
+						]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				803495593862974,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4123654495679968,
+					false
+				]
+,				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9205488495235061,
+					false
+					,[
+					[
+						8,
+						2
+					]
+,					[
+						0,
+						[
+							0,
+							250
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.IsGroupActive,
+					null,
+					0,
+					false,
+					true,
+					false,
+					5329384491131191,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Shrink"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetSize,
+					null,
+					8779705075442122,
+					false
+					,[
+					[
+						0,
+						[
+							4,
+							[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.Width,
+								false,
+								null
+							]
+							,[
+								0,
+								15
+							]
+						]
+					]
+,					[
+						0,
+						[
+							4,
+							[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.Height,
+								false,
+								null
+							]
+							,[
+								0,
+								15
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				3701019262118665,
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+					null,
+					0,
+					false,
+					false,
+					false,
+					5813174541639741,
+					false
+					,[
+					[
+						8,
+						5
+					]
+,					[
+						0,
+						[
+							0,
+							250
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					437225416096417,
+					false
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.find
+							,[
+[
+								23,
+								"ColorsUID"
+							]
+,[
+								19,
+								cr.system_object.prototype.exps.str
+								,[
+[
+									20,
+									0,
+									cr.plugins_.Sprite.prototype.exps.UID,
+									false,
+									null
+								]
+								]
+							]
+							]
+						]
+					]
+,					[
+						8,
+						5
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					9695538429741192,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Shrink"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					2503843270186399,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Grow"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			[false, "Shrink"],
+			false,
+			null,
+			8533071871637541,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.IsGroupActive,
+				null,
+				0,
+				false,
+				false,
+				false,
+				8533071871637541,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"Shrink"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9548605643301992,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					355793270450349,
+					false
+				]
+,				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3137875180974144,
+					false
+					,[
+					[
+						8,
+						4
+					]
+,					[
+						0,
+						[
+							0,
+							220
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9199868494842226,
+					false
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.find
+							,[
+[
+								23,
+								"ColorsUID"
+							]
+,[
+								19,
+								cr.system_object.prototype.exps.str
+								,[
+[
+									20,
+									0,
+									cr.plugins_.Sprite.prototype.exps.UID,
+									false,
+									null
+								]
+								]
+							]
+							]
+						]
+					]
+,					[
+						8,
+						5
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetSize,
+					null,
+					6864922133957168,
+					false
+					,[
+					[
+						0,
+						[
+							5,
+							[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.Width,
+								false,
+								null
+							]
+							,[
+								0,
+								10
+							]
+						]
+					]
+,					[
+						0,
+						[
+							5,
+							[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.Height,
+								false,
+								null
+							]
+							,[
+								0,
+								10
+							]
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					8007646719659052,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Shrink"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			3494939176813534,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTouchStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				2919920395844991,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.CreateObject,
+				null,
+				2532607393694654,
+				false
+				,[
+				[
+					4,
+					6
+				]
+,				[
+					5,
+					[
+						0,
+						1
+					]
+				]
+,				[
+					0,
+					[
+						20,
+						1,
+						cr.plugins_.Touch.prototype.exps.X,
+						false,
+						null
+					]
+				]
+,				[
+					0,
+					[
+						20,
+						1,
+						cr.plugins_.Touch.prototype.exps.Y,
+						false,
+						null
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			1667608504416799,
+			[
+			[
+				6,
+				cr.plugins_.Sprite.prototype.cnds.IsOnScreen,
+				null,
+				0,
+				false,
+				false,
+				false,
+				8578147306316736,
+				false
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.EveryTick,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4039427148548761,
+				false
+			]
+			],
+			[
+			[
+				6,
+				cr.plugins_.Sprite.prototype.acts.SetOpacity,
+				null,
+				7329753985662362,
+				false
+				,[
+				[
+					0,
+					[
+						5,
+						[
+							20,
+							6,
+							cr.plugins_.Sprite.prototype.exps.Opacity,
+							false,
+							null
+						]
+						,[
+							0,
+							7
+						]
+					]
+				]
+				]
+			]
+,			[
+				6,
+				cr.plugins_.Sprite.prototype.acts.SetSize,
+				null,
+				2211548314266298,
+				false
+				,[
+				[
+					0,
+					[
+						4,
+						[
+							20,
+							6,
+							cr.plugins_.Sprite.prototype.exps.Width,
+							false,
+							null
+						]
+						,[
+							0,
+							15
+						]
+					]
+				]
+,				[
+					0,
+					[
+						4,
+						[
+							20,
+							6,
+							cr.plugins_.Sprite.prototype.exps.Height,
+							false,
+							null
+						]
+						,[
+							0,
+							15
+						]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			992092871819428,
+			[
+			[
+				6,
+				cr.plugins_.Sprite.prototype.cnds.CompareOpacity,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3009600761749815,
+				false
+				,[
+				[
+					8,
+					3
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				6,
+				cr.plugins_.Sprite.prototype.acts.Destroy,
+				null,
+				7785151176762613,
+				false
+			]
+			]
+		]
+		]
+	]
 	],
 	[
 	],
@@ -19292,12 +21155,11 @@ false,false,4857271161516644,false
 	false,
 	0,
 	1,
-	30,
+	32,
 	false,
 	true,
 	1,
 	true,
 	[
-		[0]
 	]
 ];};
