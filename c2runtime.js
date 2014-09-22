@@ -15797,6 +15797,260 @@ cr.plugins_.Touch = function(runtime)
 }());
 ;
 ;
+cr.plugins_.WebStorage = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function()
+{
+	var pluginProto = cr.plugins_.WebStorage.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+	};
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	var prefix = "";
+	var is_arcade = (typeof window["is_scirra_arcade"] !== "undefined");
+	if (is_arcade)
+		prefix = "arcade" + window["scirra_arcade_id"];
+	var logged_sessionnotsupported = false;
+	function LogSessionNotSupported()
+	{
+		if (logged_sessionnotsupported)
+			return;
+		cr.logexport("[Construct 2] Webstorage plugin: session storage is not supported on this platform. Try using local storage or global variables instead.");
+		logged_sessionnotsupported = true;
+	};
+	instanceProto.onCreate = function()
+	{
+	};
+	function Cnds() {};
+	Cnds.prototype.LocalStorageEnabled = function()
+	{
+		return true;
+	};
+	Cnds.prototype.SessionStorageEnabled = function()
+	{
+		return true;
+	};
+	Cnds.prototype.LocalStorageExists = function(key)
+	{
+		return localStorage.getItem(prefix + key) != null;
+	};
+	Cnds.prototype.SessionStorageExists = function(key)
+	{
+		if (this.runtime.isCocoonJs || !sessionStorage)
+		{
+			LogSessionNotSupported();
+			return false;
+		}
+		return sessionStorage.getItem(prefix + key) != null;
+	};
+	Cnds.prototype.OnQuotaExceeded = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.CompareKeyText = function (key, text_to_compare, case_sensitive)
+	{
+		var value = localStorage.getItem(prefix + key) || "";
+		if (case_sensitive)
+			return value == text_to_compare;
+		else
+			return cr.equals_nocase(value, text_to_compare);
+	};
+	Cnds.prototype.CompareKeyNumber = function (key, cmp, x)
+	{
+		var value = localStorage.getItem(prefix + key) || "";
+		return cr.do_cmp(parseFloat(value), cmp, x);
+	};
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+	Acts.prototype.StoreLocal = function(key, data)
+	{
+		try {
+			localStorage.setItem(prefix + key, data);
+		}
+		catch (e)
+		{
+			this.runtime.trigger(cr.plugins_.WebStorage.prototype.cnds.OnQuotaExceeded, this);
+		}
+	};
+	Acts.prototype.StoreSession = function(key,data)
+	{
+		if (this.runtime.isCocoonJs || !sessionStorage)
+		{
+			LogSessionNotSupported();
+			return;
+		}
+		try {
+			sessionStorage.setItem(prefix + key, data);
+		}
+		catch (e)
+		{
+			this.runtime.trigger(cr.plugins_.WebStorage.prototype.cnds.OnQuotaExceeded, this);
+		}
+	};
+	Acts.prototype.RemoveLocal = function(key)
+	{
+		localStorage.removeItem(prefix + key);
+	};
+	Acts.prototype.RemoveSession = function(key)
+	{
+		if (this.runtime.isCocoonJs || !sessionStorage)
+		{
+			LogSessionNotSupported();
+			return;
+		}
+		sessionStorage.removeItem(prefix + key);
+	};
+	Acts.prototype.ClearLocal = function()
+	{
+		if (!is_arcade)
+			localStorage.clear();
+	};
+	Acts.prototype.ClearSession = function()
+	{
+		if (this.runtime.isCocoonJs || !sessionStorage)
+		{
+			LogSessionNotSupported();
+			return;
+		}
+		if (!is_arcade)
+			sessionStorage.clear();
+	};
+	Acts.prototype.JSONLoad = function (json_, mode_)
+	{
+		var d;
+		try {
+			d = JSON.parse(json_);
+		}
+		catch(e) { return; }
+		if (!d["c2dictionary"])			// presumably not a c2dictionary object
+			return;
+		var o = d["data"];
+		if (mode_ === 0 && !is_arcade)	// 'set' mode: must clear webstorage first
+			localStorage.clear();
+		var p;
+		for (p in o)
+		{
+			if (o.hasOwnProperty(p))
+			{
+				try {
+					localStorage.setItem(prefix + p, o[p]);
+				}
+				catch (e)
+				{
+					this.runtime.trigger(cr.plugins_.WebStorage.prototype.cnds.OnQuotaExceeded, this);
+					return;
+				}
+			}
+		}
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+	Exps.prototype.LocalValue = function(ret,key)
+	{
+		ret.set_string(localStorage.getItem(prefix + key) || "");
+	};
+	Exps.prototype.SessionValue = function(ret,key)
+	{
+		if (this.runtime.isCocoonJs || !sessionStorage)
+		{
+			LogSessionNotSupported();
+			ret.set_string("");
+			return;
+		}
+		ret.set_string(sessionStorage.getItem(prefix + key) || "");
+	};
+	Exps.prototype.LocalCount = function(ret)
+	{
+		ret.set_int(is_arcade ? 0 : localStorage.length);
+	};
+	Exps.prototype.SessionCount = function(ret)
+	{
+		if (this.runtime.isCocoonJs || !sessionStorage)
+		{
+			LogSessionNotSupported();
+			ret.set_int(0);
+			return;
+		}
+		ret.set_int(is_arcade ? 0 : sessionStorage.length);
+	};
+	Exps.prototype.LocalAt = function(ret,n)
+	{
+		if (is_arcade)
+			ret.set_string("");
+		else
+			ret.set_string(localStorage.getItem(localStorage.key(n)) || "");
+	};
+	Exps.prototype.SessionAt = function(ret,n)
+	{
+		if (this.runtime.isCocoonJs || !sessionStorage)
+		{
+			LogSessionNotSupported();
+			ret.set_string("");
+			return;
+		}
+		if (is_arcade)
+			ret.set_string("");
+		else
+			ret.set_string(sessionStorage.getItem(sessionStorage.key(n)) || "");
+	};
+	Exps.prototype.LocalKeyAt = function(ret,n)
+	{
+		if (is_arcade)
+			ret.set_string("");
+		else
+			ret.set_string(localStorage.key(n) || "");
+	};
+	Exps.prototype.SessionKeyAt = function(ret,n)
+	{
+		if (this.runtime.isCocoonJs || !sessionStorage)
+		{
+			LogSessionNotSupported();
+			ret.set_string("");
+			return;
+		}
+		if (is_arcade)
+			ret.set_string("");
+		else
+			ret.set_string(sessionStorage.key(n) || "");
+	};
+	Exps.prototype.AsJSON = function (ret)
+	{
+		var o = {}, i, len, k;
+		for (i = 0, len = localStorage.length; i < len; i++)
+		{
+			k = localStorage.key(i);
+			if (is_arcade)
+			{
+				if (k.substr(0, prefix.length) === prefix)
+				{
+					o[k.substr(prefix.length)] = localStorage.getItem(k);
+				}
+			}
+			else
+				o[k] = localStorage.getItem(k);
+		}
+		ret.set_string(JSON.stringify({
+			"c2dictionary": true,
+			"data": o
+		}));
+	};
+	pluginProto.exps = new Exps();
+}());
+;
+;
 cr.behaviors.Timer = function(runtime)
 {
 	this.runtime = runtime;
@@ -15947,21 +16201,9 @@ cr.behaviors.Timer = function(runtime)
 }());
 cr.getProjectModel = function() { return [
 	null,
-	"Layout 2",
+	"Menu",
 	[
 	[
-		cr.plugins_.Touch,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
 		cr.plugins_.Sprite,
 		false,
 		true,
@@ -15985,6 +16227,30 @@ cr.getProjectModel = function() { return [
 		true,
 		false
 	]
+,	[
+		cr.plugins_.Touch,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.WebStorage,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
 	],
 	[
 	[
@@ -16005,11 +16271,11 @@ cr.getProjectModel = function() { return [
 			false,
 			7436548454663019,
 			[
-				["images/colors-sheet0.png", 29519, 1, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
-				["images/colors-sheet0.png", 29519, 259, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
-				["images/colors-sheet0.png", 29519, 517, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
-				["images/colors-sheet0.png", 29519, 1, 259, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
-				["images/colors-sheet0.png", 29519, 259, 259, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0]
+				["images/colors-sheet0.png", 32492, 1, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
+				["images/colors-sheet0.png", 32492, 259, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
+				["images/colors-sheet0.png", 32492, 517, 1, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
+				["images/colors-sheet0.png", 32492, 1, 259, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0],
+				["images/colors-sheet0.png", 32492, 259, 259, 256, 256, 1, 0.49609375, 0.49609375,[],[-0.3203127384185791,-0.3203127384185791,0.00390625,-0.4531249403953552,0.3281252384185791,-0.3203127384185791,0.4609372615814209,0.00390625,0.3281252384185791,0.3281252384185791,0.00390625,0.4609372615814209,-0.3203127384185791,0.3281252384185791,-0.4531249403953552,0.00390625],0]
 			]
 			]
 		],
@@ -16057,7 +16323,7 @@ cr.getProjectModel = function() { return [
 			false,
 			1620413693031994,
 			[
-				["images/frame-sheet0.png", 812, 0, 0, 250, 250, 1, 0.5, 0.5,[],[],0]
+				["images/frame-sheet0.png", 155, 0, 0, 250, 250, 1, 0.5, 0.5,[],[],1]
 			]
 			]
 		],
@@ -16143,7 +16409,7 @@ cr.getProjectModel = function() { return [
 			false,
 			6304198394113903,
 			[
-				["images/touchanim-sheet0.png", 27813, 0, 0, 256, 256, 1, 0.5, 0.5,[],[-0.3515619933605194,-0.3515619933605194,0,-0.5,0.3515629768371582,-0.3515619933605194,0.5,0,0.3515629768371582,0.3515629768371582,0,0.5,-0.3515619933605194,0.3515629768371582,-0.5,0],0]
+				["images/touchanim-sheet0.png", 20282, 0, 0, 256, 256, 1, 0.5, 0.5,[],[-0.3515619933605194,-0.3515619933605194,0,-0.5,0.3515629768371582,-0.3515619933605194,0.5,0,0.3515629768371582,0.3515629768371582,0,0.5,-0.3515619933605194,0.3515629768371582,-0.5,0],0]
 			]
 			]
 		],
@@ -16155,16 +16421,130 @@ cr.getProjectModel = function() { return [
 		[],
 		null
 	]
+,	[
+		"t7",
+		cr.plugins_.Sprite,
+		false,
+		[],
+		0,
+		0,
+		null,
+		[
+			[
+			"Default",
+			5,
+			false,
+			1,
+			0,
+			false,
+			4514538708246812,
+			[
+				["images/logo-sheet0.png", 5028, 0, 0, 632, 71, 1, 0.5, 0.5070422291755676,[],[-0.4920886158943176,-0.4366197288036346,0,-0.4647887349128723,0.4287970066070557,0.1267607808113098,0.4952530264854431,-0.01408421993255615,0.4841769933700562,0.3521127700805664,0,0.3661967515945435,-0.466772198677063,0.1971827745437622,-0.3338609933853149,-0.01408421993255615],0]
+			]
+			]
+		],
+		[
+		],
+		false,
+		false,
+		5344982214955203,
+		[],
+		null
+	]
+,	[
+		"t8",
+		cr.plugins_.Text,
+		false,
+		[8534104170823554],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		244938928115559,
+		[],
+		null
+	]
+,	[
+		"t9",
+		cr.plugins_.Sprite,
+		false,
+		[],
+		0,
+		0,
+		null,
+		[
+			[
+			"Default",
+			0,
+			false,
+			1,
+			0,
+			false,
+			7628839331266489,
+			[
+				["images/icons-sheet0.png", 3214, 0, 0, 128, 128, 1, 0.5, 0.5,[],[],0],
+				["images/icons-sheet1.png", 2899, 0, 0, 128, 128, 1, 0.5, 0.5,[],[],0],
+				["images/icons-sheet2.png", 3041, 0, 0, 128, 128, 1, 0.5, 0.5,[],[],0]
+			]
+			]
+		],
+		[
+		],
+		false,
+		false,
+		9402710193544836,
+		[],
+		null
+	]
+,	[
+		"t10",
+		cr.plugins_.WebStorage,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		1833660993726011,
+		[],
+		null
+		,[]
+	]
+,	[
+		"t11",
+		cr.plugins_.Text,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		7493081874844023,
+		[],
+		null
+	]
 	],
 	[
 	],
 	[
 	[
-		"Layout 1",
+		"Game",
 		720,
 		1280,
 		false,
-		"Event sheet 1",
+		"Game",
 		8873350371196689,
 		[
 		[
@@ -16377,6 +16757,28 @@ cr.getProjectModel = function() { return [
 					1
 				]
 			]
+,			[
+				[881, 171, 0, 331, 143, 0, 0, 1, 0, 0, 0, 0, []],
+				4,
+				25,
+				[
+				],
+				[
+				[
+				]
+				],
+				[
+					"0",
+					0,
+					"72pt Myriad Pro Cond",
+					"rgb(0,0,0)",
+					1,
+					0,
+					0,
+					0,
+					0
+				]
+			]
 			],
 			[			]
 		]
@@ -16456,7 +16858,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[21, 25, 0, 205, 143, 0, 0, 1, 0, 0, 0, 0, []],
+				[360, 55, 0, 719, 116, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				3,
 				23,
 				[
@@ -16464,41 +16866,19 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
-					"0",
+					"0/0",
 					0,
-					"72pt Myriad Pro Cond",
+					"72pt GeosansLight",
 					"rgb(0,0,0)",
-					0,
-					0,
-					0,
+					1,
+					1,
+					1,
 					0,
 					0
 				]
 			]
 ,			[
-				[372, 28, 0, 331, 143, 0, 0, 1, 0, 0, 0, 0, []],
-				4,
-				25,
-				[
-				],
-				[
-				[
-				]
-				],
-				[
-					"0",
-					0,
-					"72pt Myriad Pro Cond",
-					"rgb(0,0,0)",
-					2,
-					0,
-					0,
-					0,
-					0
-				]
-			]
-,			[
-				[26, 136, 0, 248, 54, 0, 0, 1, 0, 0, 0, 0, []],
+				[360, 110, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				5,
 				26,
 				[
@@ -16506,33 +16886,51 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
-					"Score",
+					"Score/Time",
 					0,
-					"20pt Myriad Pro Cond",
+					"20pt GeosansLight",
 					"rgb(0,0,0)",
-					0,
-					0,
-					0,
+					1,
+					1,
+					1,
 					0,
 					0
 				]
 			]
-,			[
-				[446, 136, 0, 248, 54, 0, 0, 1, 0, 0, 0, 0, []],
-				5,
-				27,
+			],
+			[			]
+		]
+,		[
+			"Layer 2",
+			2,
+			3376407829442948,
+			true,
+			[255, 255, 255],
+			true,
+			1,
+			1,
+			1,
+			false,
+			1,
+			0,
+			0,
+			[
+			[
+				[902, 106, 0, 231, 88, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				11,
+				42,
 				[
 				],
 				[
 				],
 				[
-					"Time",
-					0,
-					"20pt Myriad Pro Cond",
-					"rgb(0,0,0)",
-					2,
-					0,
-					0,
+					"red",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
 					0,
 					0
 				]
@@ -16546,11 +16944,11 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"Layout 2",
+		"Select",
 		720,
 		1280,
 		false,
-		"Event sheet 2",
+		"Select",
 		534126725396388,
 		[
 		[
@@ -16569,7 +16967,7 @@ cr.getProjectModel = function() { return [
 			0,
 			[
 			[
-				[352, 306, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[201, 542, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				14,
 				[
@@ -16584,7 +16982,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[352, 656, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[521, 542, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				15,
 				[
@@ -16599,7 +16997,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[352, 1016, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[361, 802, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				17,
 				[
@@ -16628,6 +17026,91 @@ cr.getProjectModel = function() { return [
 					1
 				]
 			]
+,			[
+				[205, 543, 0, 328, 84, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				44,
+				[
+					[0]
+				],
+				[
+				],
+				[
+					"red",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[525, 543, 0, 328, 84, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				45,
+				[
+					[1]
+				],
+				[
+				],
+				[
+					"green",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[360, 803, 0, 328, 84, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				46,
+				[
+					[2]
+				],
+				[
+				],
+				[
+					"blue",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[360, -200, 0, 822, 143, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				4,
+				47,
+				[
+				],
+				[
+				[
+				]
+				],
+				[
+					"Choose a Bubble",
+					0,
+					"48pt GeosansLight",
+					"rgb(75,75,75)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
 			],
 			[			]
 		]
@@ -16637,11 +17120,11 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"Layout 3",
+		"GameEnd",
 		720,
 		1280,
 		false,
-		"Event sheet 3",
+		"GameEnd",
 		6087639680322844,
 		[
 		[
@@ -16690,7 +17173,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[259, 376, 0, 205, 143, 0, 0, 1, 0, 0, 0, 0, []],
+				[259, 386, 0, 205, 143, 0, 0, 1, 0, 0, 0, 0, []],
 				3,
 				16,
 				[
@@ -16700,7 +17183,7 @@ cr.getProjectModel = function() { return [
 				[
 					"0",
 					0,
-					"72pt Myriad Pro Cond",
+					"72pt GeosansLight",
 					"rgb(0,0,0)",
 					1,
 					0,
@@ -16710,7 +17193,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[190, 610, 0, 331, 143, 0, 0, 1, 0, 0, 0, 0, []],
+				[197, 618, 0, 331, 143, 0, 0, 1, 0, 0, 0, 0, []],
 				4,
 				6,
 				[
@@ -16722,7 +17205,7 @@ cr.getProjectModel = function() { return [
 				[
 					"0",
 					0,
-					"72pt Myriad Pro Cond",
+					"72pt GeosansLight",
 					"rgb(0,0,0)",
 					1,
 					0,
@@ -16732,7 +17215,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[326, 346, 0, 248, 54, 0, 0, 1, 0, 0, 0, 0, []],
+				[316, 346, 0, 248, 54, 0, 0, 1, 0, 0, 0, 0, []],
 				5,
 				28,
 				[
@@ -16742,7 +17225,7 @@ cr.getProjectModel = function() { return [
 				[
 					"Score",
 					0,
-					"20pt Myriad Pro Cond",
+					"28pt GeosansLight",
 					"rgb(0,0,0)",
 					0,
 					0,
@@ -16752,7 +17235,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[322, 582, 0, 248, 54, 0, 0, 1, 0, 0, 0, 0, []],
+				[332, 582, 0, 248, 54, 0, 0, 1, 0, 0, 0, 0, []],
 				5,
 				29,
 				[
@@ -16762,7 +17245,7 @@ cr.getProjectModel = function() { return [
 				[
 					"time",
 					0,
-					"20pt Myriad Pro Cond",
+					"28pt GeosansLight",
 					"rgb(0,0,0)",
 					0,
 					0,
@@ -16779,10 +17262,209 @@ cr.getProjectModel = function() { return [
 		],
 		[]
 	]
+,	[
+		"Menu",
+		720,
+		1280,
+		false,
+		"Menu",
+		2001215629870923,
+		[
+		[
+			"Layer 0",
+			0,
+			5261355768350594,
+			true,
+			[255, 255, 255],
+			false,
+			1,
+			1,
+			1,
+			false,
+			1,
+			0,
+			0,
+			[
+			[
+				[201, 522, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				32,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[521, 522, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				33,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					1,
+					1
+				]
+			]
+,			[
+				[361, 782, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				34,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					2,
+					1
+				]
+			]
+,			[
+				[360, -200, 0, 632, 71, 0, 0, 1, 0.5, 0.5070422291755676, 0, 0, []],
+				7,
+				35,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[205, 523, 0, 328, 84, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				36,
+				[
+					[0]
+				],
+				[
+				],
+				[
+					"regular",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[525, 523, 0, 328, 84, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				37,
+				[
+					[1]
+				],
+				[
+				],
+				[
+					"timed",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[360, 783, 0, 328, 84, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				38,
+				[
+					[2]
+				],
+				[
+				],
+				[
+					"survive",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[110, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				39,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[350, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				40,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					1,
+					1
+				]
+			]
+,			[
+				[600, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				41,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					2,
+					1
+				]
+			]
+			],
+			[			]
+		]
+		],
+		[
+		],
+		[]
+	]
 	],
 	[
 	[
-		"Event sheet 1",
+		"Game",
 		[
 		[
 			2,
@@ -16975,22 +17657,6 @@ false,false,130635249387532,false
 				]
 			]
 ,			[
-				3,
-				cr.plugins_.Text.prototype.acts.SetText,
-				null,
-				3430863202074609,
-				false
-				,[
-				[
-					7,
-					[
-						23,
-						"score"
-					]
-				]
-				]
-			]
-,			[
 				-1,
 				cr.system_object.prototype.acts.SetVar,
 				null,
@@ -17013,6 +17679,168 @@ false,false,130635249387532,false
 			]
 			,[
 			[
+				0,
+				null,
+				false,
+				null,
+				1483983789990764,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9799012420989534,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"timed"
+						]
+					]
+,					[
+						8,
+						4
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					4108816494908311,
+					false
+					,[
+					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"score"
+								]
+								,[
+									2,
+									"/"
+								]
+							]
+							,[
+								5,
+								[
+									19,
+									cr.system_object.prototype.exps["int"]
+									,[
+[
+										20,
+										10,
+										cr.plugins_.WebStorage.prototype.exps.LocalValue,
+										true,
+										null
+										,[
+[
+											2,
+											"timed"
+										]
+										]
+									]
+									]
+								]
+								,[
+									19,
+									cr.system_object.prototype.exps.floor
+									,[
+[
+										22,
+										4,
+										"Timer",
+										cr.behaviors.Timer.prototype.exps.TotalTime,
+										false,
+										null
+										,[
+[
+											2,
+											"timer1"
+										]
+										]
+									]
+									]
+								]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				9665057276887755,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Else,
+					null,
+					0,
+					false,
+					false,
+					false,
+					23346199771874,
+					false
+				]
+				],
+				[
+				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					7838280999147779,
+					false
+					,[
+					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"score"
+								]
+								,[
+									2,
+									"/"
+								]
+							]
+							,[
+								23,
+								"timer_time"
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
 				0,
 				null,
 				false,
@@ -19275,6 +20103,57 @@ false,false,130635249387532,false
 				]
 				]
 			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				7574348090764489,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.PickAll,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4543458122647987,
+					false
+					,[
+					[
+						4,
+						11
+					]
+					]
+				]
+				],
+				[
+				[
+					11,
+					cr.plugins_.Text.prototype.acts.MoveAtAngle,
+					null,
+					7250714695210405,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							90
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							320
+						]
+					]
+					]
+				]
+				]
+			]
 			]
 		]
 ,		[
@@ -19379,22 +20258,6 @@ false,false,130635249387532,false
 				]
 			]
 ,			[
-				3,
-				cr.plugins_.Text.prototype.acts.SetText,
-				null,
-				5361653421555216,
-				false
-				,[
-				[
-					7,
-					[
-						23,
-						"score"
-					]
-				]
-				]
-			]
-,			[
 				-1,
 				cr.system_object.prototype.acts.SetVar,
 				null,
@@ -19471,7 +20334,7 @@ false,false,130635249387532,false
 				,[
 				[
 					6,
-					"Layout 3"
+					"GameEnd"
 				]
 				]
 			]
@@ -19507,17 +20370,21 @@ false,false,130635249387532,false
 			],
 			[
 			[
-				4,
-				cr.plugins_.Text.prototype.acts.SetText,
+				-1,
+				cr.system_object.prototype.acts.SetVar,
 				null,
-				8903112796090083,
+				8400831145640813,
 				false
 				,[
 				[
+					11,
+					"timer_time"
+				]
+,				[
 					7,
 					[
 						19,
-						cr.system_object.prototype.exps.floor
+						cr.system_object.prototype.exps["int"]
 						,[
 [
 							22,
@@ -19534,6 +20401,170 @@ false,false,130635249387532,false
 							]
 						]
 						]
+					]
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				1495263866654527,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+					null,
+					0,
+					false,
+					false,
+					false,
+					7579431823668801,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"timed"
+						]
+					]
+,					[
+						8,
+						4
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					670799015437222,
+					false
+					,[
+					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"score"
+								]
+								,[
+									2,
+									"/"
+								]
+							]
+							,[
+								5,
+								[
+									19,
+									cr.system_object.prototype.exps["int"]
+									,[
+[
+										20,
+										10,
+										cr.plugins_.WebStorage.prototype.exps.LocalValue,
+										true,
+										null
+										,[
+[
+											2,
+											"timed"
+										]
+										]
+									]
+									]
+								]
+								,[
+									19,
+									cr.system_object.prototype.exps.floor
+									,[
+[
+										22,
+										4,
+										"Timer",
+										cr.behaviors.Timer.prototype.exps.TotalTime,
+										false,
+										null
+										,[
+[
+											2,
+											"timer1"
+										]
+										]
+									]
+									]
+								]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				3463130535439273,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Else,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6869137823787552,
+					false
+				]
+				],
+				[
+				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					8903112796090083,
+					false
+					,[
+					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"score"
+								]
+								,[
+									2,
+									"/"
+								]
+							]
+							,[
+								23,
+								"timer_time"
+							]
+						]
+					]
 					]
 				]
 				]
@@ -19801,6 +20832,57 @@ false,false,130635249387532,false
 			null,
 			false,
 			null,
+			9273436014547603,
+			[
+			[
+				11,
+				cr.plugins_.Text.prototype.cnds.CompareY,
+				null,
+				0,
+				false,
+				false,
+				false,
+				7386501565492618,
+				false
+				,[
+				[
+					8,
+					4
+				]
+,				[
+					0,
+					[
+						0,
+						800
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				11,
+				cr.plugins_.Text.prototype.acts.SetFontSize,
+				null,
+				783746202177622,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						36
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
 			5962407367813955,
 			[
 			[
@@ -19840,11 +20922,576 @@ false,false,130635249387532,false
 				]
 			]
 			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				5958915333807048,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4512567020331123,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"timed"
+						]
+					]
+,					[
+						8,
+						4
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					9711215025123948,
+					false
+					,[
+					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"score"
+								]
+								,[
+									2,
+									"/"
+								]
+							]
+							,[
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"timed"
+								]
+								]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				7229329841280601,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6358210888188589,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"gametype"
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					11,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					8888753277574138,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			7610637168870873,
+			[
+			[
+				10,
+				cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4811916335955291,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"timed"
+					]
+				]
+,				[
+					8,
+					4
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.Compare,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4055383312066394,
+				false
+				,[
+				[
+					7,
+					[
+						5,
+						[
+							19,
+							cr.system_object.prototype.exps["int"]
+							,[
+[
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"timed"
+								]
+								]
+							]
+							]
+						]
+						,[
+							19,
+							cr.system_object.prototype.exps.floor
+							,[
+[
+								22,
+								4,
+								"Timer",
+								cr.behaviors.Timer.prototype.exps.TotalTime,
+								false,
+								null
+								,[
+[
+									2,
+									"timer1"
+								]
+								]
+							]
+							]
+						]
+					]
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				3,
+				cr.plugins_.Text.prototype.acts.SetText,
+				null,
+				6579648110793336,
+				false
+				,[
+				[
+					7,
+					[
+						10,
+						[
+							10,
+							[
+								23,
+								"score"
+							]
+							,[
+								2,
+								"/"
+							]
+						]
+						,[
+							5,
+							[
+								19,
+								cr.system_object.prototype.exps["int"]
+								,[
+[
+									20,
+									10,
+									cr.plugins_.WebStorage.prototype.exps.LocalValue,
+									true,
+									null
+									,[
+[
+										2,
+										"timed"
+									]
+									]
+								]
+								]
+							]
+							,[
+								19,
+								cr.system_object.prototype.exps.floor
+								,[
+[
+									22,
+									4,
+									"Timer",
+									cr.behaviors.Timer.prototype.exps.TotalTime,
+									false,
+									null
+									,[
+[
+										2,
+										"timer1"
+									]
+									]
+								]
+								]
+							]
+						]
+					]
+				]
+				]
+			]
+,			[
+				4,
+				cr.behaviors.Timer.prototype.acts.StopTimer,
+				"Timer",
+				9304252376266541,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"timer1"
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.acts.GoToLayout,
+				null,
+				2291623833851473,
+				false
+				,[
+				[
+					6,
+					"GameEnd"
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			5553219786304395,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareY,
+				null,
+				0,
+				false,
+				false,
+				false,
+				5576031273668106,
+				false
+				,[
+				[
+					8,
+					4
+				]
+,				[
+					0,
+					[
+						0,
+						1280
+					]
+				]
+				]
+			]
+,			[
+				11,
+				cr.plugins_.Text.prototype.cnds.CompareY,
+				null,
+				0,
+				false,
+				false,
+				false,
+				9412399441783256,
+				false
+				,[
+				[
+					8,
+					4
+				]
+,				[
+					0,
+					[
+						0,
+						1280
+					]
+				]
+				]
+			]
+,			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.IsOverlapping,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2769328129101309,
+				false
+				,[
+				[
+					4,
+					11
+				]
+				]
+			]
+			],
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.acts.Destroy,
+				null,
+				566574763474697,
+				false
+			]
+,			[
+				11,
+				cr.plugins_.Text.prototype.acts.Destroy,
+				null,
+				7421466506731904,
+				false
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			650560617094222,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.IsOnScreen,
+				null,
+				0,
+				false,
+				false,
+				false,
+				9629159769529428,
+				false
+			]
+,			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.IsOverlapping,
+				null,
+				0,
+				false,
+				true,
+				false,
+				3948746090903913,
+				false
+				,[
+				[
+					4,
+					11
+				]
+				]
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.CreateObject,
+				null,
+				5453860298547612,
+				false
+				,[
+				[
+					4,
+					11
+				]
+,				[
+					5,
+					[
+						0,
+						2
+					]
+				]
+,				[
+					0,
+					[
+						20,
+						0,
+						cr.plugins_.Sprite.prototype.exps.X,
+						false,
+						null
+					]
+				]
+,				[
+					0,
+					[
+						20,
+						0,
+						cr.plugins_.Sprite.prototype.exps.Y,
+						false,
+						null
+					]
+				]
+				]
+			]
+,			[
+				11,
+				cr.plugins_.Text.prototype.acts.MoveToTop,
+				null,
+				2320450890979385,
+				false
+			]
+,			[
+				11,
+				cr.plugins_.Text.prototype.acts.SetText,
+				null,
+				4545869142107934,
+				false
+				,[
+				[
+					7,
+					[
+						19,
+						cr.system_object.prototype.exps.choose
+						,[
+[
+							2,
+							"red"
+						]
+,[
+							2,
+							"green"
+						]
+,[
+							2,
+							"blue"
+						]
+						]
+					]
+				]
+				]
+			]
+,			[
+				11,
+				cr.plugins_.Text.prototype.acts.SetVisible,
+				null,
+				9931751625366503,
+				false
+				,[
+				[
+					3,
+					1
+				]
+				]
+			]
+			]
 		]
 		]
 	]
 ,	[
-		"Event sheet 2",
+		"Select",
 		[
 		[
 			2,
@@ -20078,6 +21725,61 @@ false,false,4857271161516644,false
 				]
 				]
 			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1448443520525472,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+					null,
+					0,
+					false,
+					false,
+					false,
+					49513503732301,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"gametype"
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					8,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					4572708691011694,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
 			]
 		]
 ,		[
@@ -20171,6 +21873,29 @@ false,false,4857271161516644,false
 				]
 				]
 			]
+,			[
+				4,
+				cr.plugins_.Text.prototype.acts.MoveAtAngle,
+				null,
+				5244061337093705,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						-90
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						15
+					]
+				]
+				]
+			]
 			]
 		]
 ,		[
@@ -20215,7 +21940,104 @@ false,false,4857271161516644,false
 				,[
 				[
 					6,
-					"Layout 1"
+					"Game"
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			7226285994526986,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.EveryTick,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4530882864566273,
+				false
+			]
+,			[
+				4,
+				cr.plugins_.Text.prototype.cnds.CompareY,
+				null,
+				0,
+				false,
+				false,
+				false,
+				5104029227350812,
+				false
+				,[
+				[
+					8,
+					2
+				]
+,				[
+					0,
+					[
+						0,
+						160
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.CompareVar,
+				null,
+				0,
+				false,
+				false,
+				false,
+				7256289210291116,
+				false
+				,[
+				[
+					11,
+					"colorvalue"
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						0,
+						-1
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				4,
+				cr.plugins_.Text.prototype.acts.MoveAtAngle,
+				null,
+				5608151070977878,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						90
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						15
+					]
 				]
 				]
 			]
@@ -20224,7 +22046,7 @@ false,false,4857271161516644,false
 		]
 	]
 ,	[
-		"Event sheet 3",
+		"GameEnd",
 		[
 		[
 			0,
@@ -20316,7 +22138,7 @@ false,false,4857271161516644,false
 				,[
 				[
 					6,
-					"Layout 2"
+					"Menu"
 				]
 				]
 			]
@@ -20807,7 +22629,7 @@ false,false,4857271161516644,false
 						0,
 						[
 							0,
-							220
+							230
 						]
 					]
 					]
@@ -20907,11 +22729,46 @@ false,false,4857271161516644,false
 					]
 					]
 				]
-,				[
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1431191626669165,
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2865672298541425,
+					false
+					,[
+					[
+						8,
+						3
+					]
+,					[
+						0,
+						[
+							0,
+							230
+						]
+					]
+					]
+				]
+				],
+				[
+				[
 					-1,
 					cr.system_object.prototype.acts.SetGroupActive,
 					null,
-					8007646719659052,
+					4929443386221081,
 					false
 					,[
 					[
@@ -20919,6 +22776,233 @@ false,false,4857271161516644,false
 						[
 							2,
 							"Shrink"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			[false, "ShrinkCustom"],
+			false,
+			null,
+			3358300972079831,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.IsGroupActive,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3358300972079831,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"ShrinkCustom"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9548605643301992,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					355793270450349,
+					false
+				]
+,				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3137875180974144,
+					false
+					,[
+					[
+						8,
+						4
+					]
+,					[
+						0,
+						[
+							0,
+							5
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9199868494842226,
+					false
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.find
+							,[
+[
+								23,
+								"ColorsUID"
+							]
+,[
+								19,
+								cr.system_object.prototype.exps.str
+								,[
+[
+									20,
+									0,
+									cr.plugins_.Sprite.prototype.exps.UID,
+									false,
+									null
+								]
+								]
+							]
+							]
+						]
+					]
+,					[
+						8,
+						5
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetSize,
+					null,
+					6864922133957168,
+					false
+					,[
+					[
+						0,
+						[
+							5,
+							[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.Width,
+								false,
+								null
+							]
+							,[
+								0,
+								10
+							]
+						]
+					]
+,					[
+						0,
+						[
+							5,
+							[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.Height,
+								false,
+								null
+							]
+							,[
+								0,
+								10
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1431191626669165,
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2865672298541425,
+					false
+					,[
+					[
+						8,
+						3
+					]
+,					[
+						0,
+						[
+							0,
+							5
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					4929443386221081,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"ShrinkCustom"
 						]
 					]
 ,					[
@@ -21139,6 +23223,1439 @@ false,false,4857271161516644,false
 		]
 		]
 	]
+,	[
+		"Menu",
+		[
+		[
+			2,
+			"Global",
+			false
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			9788635054133167,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				9457027778406564,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				904754655198548,
+				false
+				,[
+				[
+					11,
+					"ColorsUID"
+				]
+,				[
+					7,
+					[
+						2,
+						""
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				296112051962932,
+				false
+				,[
+				[
+					11,
+					"colorvalue"
+				]
+,				[
+					7,
+					[
+						0,
+						-1
+					]
+				]
+				]
+			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+				null,
+				7704483182624927,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"gametype"
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						-1
+					]
+				]
+				]
+			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+				null,
+				1895604415868756,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"timed"
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				6502068803734938,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.ForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					7637772176850311,
+					false
+					,[
+					[
+						4,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.TriggerOnce,
+					null,
+					0,
+					false,
+					false,
+					false,
+					1552364615536244,
+					false
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					8801912862455942,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				4546301252281944,
+				[
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					1614098159344187,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Grow"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			823855876141872,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+				null,
+				0,
+				false,
+				false,
+				false,
+				5818208365667557,
+				false
+				,[
+				[
+					8,
+					4
+				]
+,				[
+					0,
+					[
+						0,
+						200
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.TriggerOnce,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4533920607058538,
+				false
+			]
+			],
+			[
+			[
+				8,
+				cr.plugins_.Text.prototype.acts.SetVisible,
+				null,
+				1165057414799062,
+				false
+				,[
+				[
+					3,
+					1
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			2955148503477038,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				154468157266629,
+				false
+				,[
+				[
+					4,
+					0
+				]
+				]
+			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4968346770999962,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"gametype"
+					]
+				]
+,				[
+					8,
+					2
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.Wait,
+				null,
+				5849011485526095,
+				false
+				,[
+				[
+					0,
+					[
+						1,
+						0.1
+					]
+				]
+				]
+			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+				null,
+				5149512296710557,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"gametype"
+					]
+				]
+,				[
+					7,
+					[
+						20,
+						0,
+						cr.plugins_.Sprite.prototype.exps.AnimationFrame,
+						false,
+						null
+					]
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9502545760087146,
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					8011673437279005,
+					false
+					,[
+					[
+						8,
+						1
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					8,
+					cr.plugins_.Text.prototype.acts.SetAngle,
+					null,
+					6367250442345389,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							6
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.Wait,
+					null,
+					2671547669312136,
+					false
+					,[
+					[
+						0,
+						[
+							1,
+							0.2
+						]
+					]
+					]
+				]
+				]
+				,[
+				[
+					0,
+					null,
+					false,
+					null,
+					2222154760681559,
+					[
+					[
+						8,
+						cr.plugins_.Text.prototype.cnds.CompareInstanceVar,
+						null,
+						0,
+						false,
+						false,
+						false,
+						2490143103812439,
+						false
+						,[
+						[
+							10,
+							0
+						]
+,						[
+							8,
+							0
+						]
+,						[
+							7,
+							[
+								0,
+								0
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						8,
+						cr.plugins_.Text.prototype.acts.SetText,
+						null,
+						4432650193669191,
+						false
+						,[
+						[
+							7,
+							[
+								2,
+								"30s"
+							]
+						]
+						]
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					null,
+					4107881977999084,
+					[
+					[
+						8,
+						cr.plugins_.Text.prototype.cnds.CompareInstanceVar,
+						null,
+						0,
+						false,
+						false,
+						false,
+						6358801394966719,
+						false
+						,[
+						[
+							10,
+							0
+						]
+,						[
+							8,
+							0
+						]
+,						[
+							7,
+							[
+								0,
+								1
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						8,
+						cr.plugins_.Text.prototype.acts.SetText,
+						null,
+						7514609825844149,
+						false
+						,[
+						[
+							7,
+							[
+								2,
+								"1\""
+							]
+						]
+						]
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					null,
+					764278600327809,
+					[
+					[
+						8,
+						cr.plugins_.Text.prototype.cnds.CompareInstanceVar,
+						null,
+						0,
+						false,
+						false,
+						false,
+						1672990494508307,
+						false
+						,[
+						[
+							10,
+							0
+						]
+,						[
+							8,
+							0
+						]
+,						[
+							7,
+							[
+								0,
+								2
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						8,
+						cr.plugins_.Text.prototype.acts.SetText,
+						null,
+						4360667165491542,
+						false
+						,[
+						[
+							7,
+							[
+								2,
+								"2\""
+							]
+						]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2810914108360312,
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4168439110069055,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					411119976054265,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"ShrinkCustom"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			8877453247723311,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				1082350125927796,
+				false
+				,[
+				[
+					4,
+					0
+				]
+				]
+			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4366617799764685,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"gametype"
+					]
+				]
+,				[
+					8,
+					5
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.SetGroupActive,
+				null,
+				3194659298763284,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"ShrinkCustom"
+					]
+				]
+,				[
+					3,
+					1
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				8943146019903406,
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					7868526404757443,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					7444037094457566,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"timed"
+						]
+					]
+,					[
+						7,
+						[
+							0,
+							30
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				7514722242692819,
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					7035646331843568,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					2274413778739534,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"timed"
+						]
+					]
+,					[
+						7,
+						[
+							0,
+							60
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				3906048069217357,
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					8115268266337673,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					3299406574434503,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"timed"
+						]
+					]
+,					[
+						7,
+						[
+							0,
+							120
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			8808294678295282,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+				null,
+				0,
+				false,
+				false,
+				false,
+				775165233790605,
+				false
+				,[
+				[
+					8,
+					3
+				]
+,				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.GoToLayout,
+				null,
+				5066021781031929,
+				false
+				,[
+				[
+					6,
+					"Select"
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			3032936024638133,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.IsGroupActive,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3482750517586282,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"ShrinkCustom"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9146224893216709,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					5196138332130897,
+					false
+				]
+,				[
+					7,
+					cr.plugins_.Sprite.prototype.cnds.CompareY,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2887770290554075,
+					false
+					,[
+					[
+						8,
+						4
+					]
+,					[
+						0,
+						[
+							0,
+							-200
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					7,
+					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					null,
+					7036732650858215,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							-90
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							15
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2579859519027443,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					5320404742006137,
+					false
+				]
+,				[
+					9,
+					cr.plugins_.Sprite.prototype.cnds.CompareY,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2004841464047254,
+					false
+					,[
+					[
+						8,
+						2
+					]
+,					[
+						0,
+						[
+							0,
+							1500
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					9,
+					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					null,
+					5167715082811648,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							90
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							15
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			6424950859173502,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.Else,
+				null,
+				0,
+				false,
+				false,
+				false,
+				6174349204809962,
+				false
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9853275996950288,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4614305489579954,
+					false
+				]
+,				[
+					7,
+					cr.plugins_.Sprite.prototype.cnds.CompareY,
+					null,
+					0,
+					false,
+					false,
+					false,
+					435391828483369,
+					false
+					,[
+					[
+						8,
+						2
+					]
+,					[
+						0,
+						[
+							0,
+							160
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					7,
+					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					null,
+					9207310788332666,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							90
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							15
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				4203566569886853,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					8365352341294747,
+					false
+				]
+,				[
+					9,
+					cr.plugins_.Sprite.prototype.cnds.CompareY,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2491739140752415,
+					false
+					,[
+					[
+						8,
+						4
+					]
+,					[
+						0,
+						[
+							0,
+							1180
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					9,
+					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					null,
+					7054427897741555,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							-90
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							15
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			9759553847123908,
+			[
+			[
+				8,
+				cr.plugins_.Text.prototype.cnds.IsBetweenAngles,
+				null,
+				0,
+				false,
+				false,
+				false,
+				5984381274181127,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						350
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				8,
+				cr.plugins_.Text.prototype.acts.SetAngle,
+				null,
+				1222021713414454,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			7580974149683278,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.EveryTick,
+				null,
+				0,
+				false,
+				false,
+				false,
+				1121386746809353,
+				false
+			]
+,			[
+				8,
+				cr.plugins_.Text.prototype.cnds.IsBetweenAngles,
+				null,
+				0,
+				false,
+				false,
+				false,
+				8730004287822129,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						350
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				8,
+				cr.plugins_.Text.prototype.acts.RotateClockwise,
+				null,
+				2435516733915086,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						15
+					]
+				]
+				]
+			]
+			]
+		]
+		]
+	]
 	],
 	[
 	],
@@ -21155,7 +24672,7 @@ false,false,4857271161516644,false
 	false,
 	0,
 	1,
-	32,
+	49,
 	false,
 	true,
 	1,
