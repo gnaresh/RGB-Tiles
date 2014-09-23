@@ -19128,6 +19128,18 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
+		cr.plugins_.Text,
+		false,
+		true,
+		true,
+		true,
+		true,
+		true,
+		true,
+		true,
+		false
+	]
+,	[
 		cr.plugins_.Sprite,
 		false,
 		true,
@@ -19149,18 +19161,6 @@ cr.getProjectModel = function() { return [
 		false,
 		false,
 		false,
-		false
-	]
-,	[
-		cr.plugins_.Text,
-		false,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
 		false
 	]
 ,	[
@@ -19477,8 +19477,26 @@ cr.getProjectModel = function() { return [
 		null
 		,[0,0,1,1,600,600,10000,1,5000,1]
 	]
+,	[
+		"t13",
+		cr.plugins_.Text,
+		true,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		4544015299028922,
+		[],
+		null
+	]
 	],
 	[
+		[13,11,8,5,3,4]
 	],
 	[
 	[
@@ -26204,143 +26222,6 @@ false,false,4857271161516644,false
 			null,
 			false,
 			null,
-			6083345652826531,
-			[
-			[
-				-1,
-				cr.system_object.prototype.cnds.OnLayoutStart,
-				null,
-				1,
-				false,
-				false,
-				false,
-				3457051228005052,
-				false
-			]
-			],
-			[
-			[
-				11,
-				cr.plugins_.Text.prototype.acts.SetWebFont,
-				null,
-				1201840936439848,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"Geo Sans Light"
-					]
-				]
-,				[
-					1,
-					[
-						2,
-						"geo_sans_light.css"
-					]
-				]
-				]
-			]
-,			[
-				8,
-				cr.plugins_.Text.prototype.acts.SetWebFont,
-				null,
-				2783827641719835,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"Geo Sans Light"
-					]
-				]
-,				[
-					1,
-					[
-						2,
-						"geo_sans_light.css"
-					]
-				]
-				]
-			]
-,			[
-				5,
-				cr.plugins_.Text.prototype.acts.SetWebFont,
-				null,
-				3183557026086698,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"Geo Sans Light"
-					]
-				]
-,				[
-					1,
-					[
-						2,
-						"geo_sans_light.css"
-					]
-				]
-				]
-			]
-,			[
-				3,
-				cr.plugins_.Text.prototype.acts.SetWebFont,
-				null,
-				1112524557914929,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"Geo Sans Light"
-					]
-				]
-,				[
-					1,
-					[
-						2,
-						"geo_sans_light.css"
-					]
-				]
-				]
-			]
-,			[
-				4,
-				cr.plugins_.Text.prototype.acts.SetWebFont,
-				null,
-				9425957830273953,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"Geo Sans Light"
-					]
-				]
-,				[
-					1,
-					[
-						2,
-						"geo_sans_light.css"
-					]
-				]
-				]
-			]
-			]
-		]
-,		[
-			0,
-			null,
-			false,
-			null,
 			9703408979675513,
 			[
 			[
@@ -26400,6 +26281,51 @@ false,false,4857271161516644,false
 					[
 						2,
 						""
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			8884897769229845,
+			[
+			[
+				13,
+				cr.plugins_.Text.prototype.cnds.OnCreated,
+				null,
+				1,
+				false,
+				false,
+				false,
+				5824616447420579,
+				false
+			]
+			],
+			[
+			[
+				13,
+				cr.plugins_.Text.prototype.acts.SetWebFont,
+				null,
+				1201840936439848,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"Geo Sans Light"
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"geo_sans_light.css"
 					]
 				]
 				]
