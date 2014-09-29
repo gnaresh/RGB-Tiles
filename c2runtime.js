@@ -12834,6 +12834,684 @@ cr.system_object.prototype.loadFromJSON = function (o)
 cr.shaders = {};
 ;
 ;
+cr.plugins_.Arr = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.Arr.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+	};
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	var arrCache = [];
+	function allocArray()
+	{
+		if (arrCache.length)
+			return arrCache.pop();
+		else
+			return [];
+	};
+	if (!Array.isArray)
+	{
+		Array.isArray = function (vArg) {
+			return Object.prototype.toString.call(vArg) === "[object Array]";
+		};
+	}
+	function freeArray(a)
+	{
+		var i, len;
+		for (i = 0, len = a.length; i < len; i++)
+		{
+			if (Array.isArray(a[i]))
+				freeArray(a[i]);
+		}
+		a.length = 0;
+		arrCache.push(a);
+	};
+	instanceProto.onCreate = function()
+	{
+		this.cx = this.properties[0];
+		this.cy = this.properties[1];
+		this.cz = this.properties[2];
+		if (!this.recycled)
+			this.arr = allocArray();
+		var a = this.arr;
+		a.length = this.cx;
+		var x, y, z;
+		for (x = 0; x < this.cx; x++)
+		{
+			if (!a[x])
+				a[x] = allocArray();
+			a[x].length = this.cy;
+			for (y = 0; y < this.cy; y++)
+			{
+				if (!a[x][y])
+					a[x][y] = allocArray();
+				a[x][y].length = this.cz;
+				for (z = 0; z < this.cz; z++)
+					a[x][y][z] = 0;
+			}
+		}
+		this.forX = 0;
+		this.forY = 0;
+		this.forZ = 0;
+	};
+	instanceProto.onDestroy = function ()
+	{
+		var x;
+		for (x = 0; x < this.cx; x++)
+			freeArray(this.arr[x]);		// will recurse down and recycle other arrays
+		this.arr.length = 0;
+	};
+	instanceProto.at = function (x, y, z)
+	{
+		x = Math.floor(x);
+		y = Math.floor(y);
+		z = Math.floor(z);
+		if (isNaN(x) || x < 0 || x > this.cx - 1)
+			return 0;
+		if (isNaN(y) || y < 0 || y > this.cy - 1)
+			return 0;
+		if (isNaN(z) || z < 0 || z > this.cz - 1)
+			return 0;
+		return this.arr[x][y][z];
+	};
+	instanceProto.set = function (x, y, z, val)
+	{
+		x = Math.floor(x);
+		y = Math.floor(y);
+		z = Math.floor(z);
+		if (isNaN(x) || x < 0 || x > this.cx - 1)
+			return;
+		if (isNaN(y) || y < 0 || y > this.cy - 1)
+			return;
+		if (isNaN(z) || z < 0 || z > this.cz - 1)
+			return;
+		this.arr[x][y][z] = val;
+	};
+	instanceProto.getAsJSON = function ()
+	{
+		return JSON.stringify({
+			"c2array": true,
+			"size": [this.cx, this.cy, this.cz],
+			"data": this.arr
+		});
+	};
+	instanceProto.saveToJSON = function ()
+	{
+		return {
+			"size": [this.cx, this.cy, this.cz],
+			"data": this.arr
+		};
+	};
+	instanceProto.loadFromJSON = function (o)
+	{
+		var sz = o["size"];
+		this.cx = sz[0];
+		this.cy = sz[1];
+		this.cz = sz[2];
+		this.arr = o["data"];
+	};
+	instanceProto.setSize = function (w, h, d)
+	{
+		if (w < 0) w = 0;
+		if (h < 0) h = 0;
+		if (d < 0) d = 0;
+		if (this.cx === w && this.cy === h && this.cz === d)
+			return;		// no change
+		this.cx = w;
+		this.cy = h;
+		this.cz = d;
+		var x, y, z;
+		var a = this.arr;
+		a.length = w;
+		for (x = 0; x < this.cx; x++)
+		{
+			if (cr.is_undefined(a[x]))
+				a[x] = allocArray();
+			a[x].length = h;
+			for (y = 0; y < this.cy; y++)
+			{
+				if (cr.is_undefined(a[x][y]))
+					a[x][y] = allocArray();
+				a[x][y].length = d;
+				for (z = 0; z < this.cz; z++)
+				{
+					if (cr.is_undefined(a[x][y][z]))
+						a[x][y][z] = 0;
+				}
+			}
+		}
+	};
+	function Cnds() {};
+	Cnds.prototype.CompareX = function (x, cmp, val)
+	{
+		return cr.do_cmp(this.at(x, 0, 0), cmp, val);
+	};
+	Cnds.prototype.CompareXY = function (x, y, cmp, val)
+	{
+		return cr.do_cmp(this.at(x, y, 0), cmp, val);
+	};
+	Cnds.prototype.CompareXYZ = function (x, y, z, cmp, val)
+	{
+		return cr.do_cmp(this.at(x, y, z), cmp, val);
+	};
+	instanceProto.doForEachTrigger = function (current_event)
+	{
+		this.runtime.pushCopySol(current_event.solModifiers);
+		current_event.retrigger();
+		this.runtime.popSol(current_event.solModifiers);
+	};
+	Cnds.prototype.ArrForEach = function (dims)
+	{
+        var current_event = this.runtime.getCurrentEventStack().current_event;
+		this.forX = 0;
+		this.forY = 0;
+		this.forZ = 0;
+		switch (dims) {
+		case 0:
+			for (this.forX = 0; this.forX < this.cx; this.forX++)
+			{
+				for (this.forY = 0; this.forY < this.cy; this.forY++)
+				{
+					for (this.forZ = 0; this.forZ < this.cz; this.forZ++)
+					{
+						this.doForEachTrigger(current_event);
+					}
+				}
+			}
+			break;
+		case 1:
+			for (this.forX = 0; this.forX < this.cx; this.forX++)
+			{
+				for (this.forY = 0; this.forY < this.cy; this.forY++)
+				{
+					this.doForEachTrigger(current_event);
+				}
+			}
+			break;
+		case 2:
+			for (this.forX = 0; this.forX < this.cx; this.forX++)
+			{
+				this.doForEachTrigger(current_event);
+			}
+			break;
+		}
+		this.forX = 0;
+		this.forY = 0;
+		this.forZ = 0;
+		return false;
+	};
+	Cnds.prototype.CompareCurrent = function (cmp, val)
+	{
+		return cr.do_cmp(this.at(this.forX, this.forY, this.forZ), cmp, val);
+	};
+	Cnds.prototype.Contains = function(val)
+	{
+		var x, y, z;
+		for (x = 0; x < this.cx; x++)
+		{
+			for (y = 0; y < this.cy; y++)
+			{
+				for (z = 0; z < this.cz; z++)
+				{
+					if (this.arr[x][y][z] === val)
+						return true;
+				}
+			}
+		}
+		return false;
+	};
+	Cnds.prototype.IsEmpty = function ()
+	{
+		return this.cx === 0 || this.cy === 0 || this.cz === 0;
+	};
+	Cnds.prototype.CompareSize = function (axis, cmp, value)
+	{
+		var s = 0;
+		switch (axis) {
+		case 0:
+			s = this.cx;
+			break;
+		case 1:
+			s = this.cy;
+			break;
+		case 2:
+			s = this.cz;
+			break;
+		}
+		return cr.do_cmp(s, cmp, value);
+	};
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+	Acts.prototype.Clear = function ()
+	{
+		var x, y, z;
+		for (x = 0; x < this.cx; x++)
+			for (y = 0; y < this.cy; y++)
+				for (z = 0; z < this.cz; z++)
+					this.arr[x][y][z] = 0;
+	};
+	Acts.prototype.SetSize = function (w, h, d)
+	{
+		this.setSize(w, h, d);
+	};
+	Acts.prototype.SetX = function (x, val)
+	{
+		this.set(x, 0, 0, val);
+	};
+	Acts.prototype.SetXY = function (x, y, val)
+	{
+		this.set(x, y, 0, val);
+	};
+	Acts.prototype.SetXYZ = function (x, y, z, val)
+	{
+		this.set(x, y, z, val);
+	};
+	Acts.prototype.Push = function (where, value, axis)
+	{
+		var x = 0, y = 0, z = 0;
+		var a = this.arr;
+		switch (axis) {
+		case 0:	// X axis
+			if (where === 0)	// back
+			{
+				x = a.length;
+				a.push(allocArray());
+			}
+			else				// front
+			{
+				x = 0;
+				a.unshift(allocArray());
+			}
+			a[x].length = this.cy;
+			for ( ; y < this.cy; y++)
+			{
+				a[x][y] = allocArray();
+				a[x][y].length = this.cz;
+				for (z = 0; z < this.cz; z++)
+					a[x][y][z] = value;
+			}
+			this.cx++;
+			break;
+		case 1: // Y axis
+			for ( ; x < this.cx; x++)
+			{
+				if (where === 0)	// back
+				{
+					y = a[x].length;
+					a[x].push(allocArray());
+				}
+				else				// front
+				{
+					y = 0;
+					a[x].unshift(allocArray());
+				}
+				a[x][y].length = this.cz;
+				for (z = 0; z < this.cz; z++)
+					a[x][y][z] = value;
+			}
+			this.cy++;
+			break;
+		case 2:	// Z axis
+			for ( ; x < this.cx; x++)
+			{
+				for (y = 0; y < this.cy; y++)
+				{
+					if (where === 0)	// back
+					{
+						a[x][y].push(value);
+					}
+					else				// front
+					{
+						a[x][y].unshift(value);
+					}
+				}
+			}
+			this.cz++;
+			break;
+		}
+	};
+	Acts.prototype.Pop = function (where, axis)
+	{
+		var x = 0, y = 0, z = 0;
+		var a = this.arr;
+		switch (axis) {
+		case 0:	// X axis
+			if (this.cx === 0)
+				break;
+			if (where === 0)	// back
+			{
+				freeArray(a.pop());
+			}
+			else				// front
+			{
+				freeArray(a.shift());
+			}
+			this.cx--;
+			break;
+		case 1: // Y axis
+			if (this.cy === 0)
+				break;
+			for ( ; x < this.cx; x++)
+			{
+				if (where === 0)	// back
+				{
+					freeArray(a[x].pop());
+				}
+				else				// front
+				{
+					freeArray(a[x].shift());
+				}
+			}
+			this.cy--;
+			break;
+		case 2:	// Z axis
+			if (this.cz === 0)
+				break;
+			for ( ; x < this.cx; x++)
+			{
+				for (y = 0; y < this.cy; y++)
+				{
+					if (where === 0)	// back
+					{
+						a[x][y].pop();
+					}
+					else				// front
+					{
+						a[x][y].shift();
+					}
+				}
+			}
+			this.cz--;
+			break;
+		}
+	};
+	Acts.prototype.Reverse = function (axis)
+	{
+		var x = 0, y = 0, z = 0;
+		var a = this.arr;
+		if (this.cx === 0 || this.cy === 0 || this.cz === 0)
+			return;		// no point reversing empty array
+		switch (axis) {
+		case 0:	// X axis
+			a.reverse();
+			break;
+		case 1: // Y axis
+			for ( ; x < this.cx; x++)
+				a[x].reverse();
+			break;
+		case 2:	// Z axis
+			for ( ; x < this.cx; x++)
+				for (y = 0; y < this.cy; y++)
+					a[x][y].reverse();
+			this.cz--;
+			break;
+		}
+	};
+	function compareValues(va, vb)
+	{
+		if (cr.is_number(va) && cr.is_number(vb))
+			return va - vb;
+		else
+		{
+			var sa = "" + va;
+			var sb = "" + vb;
+			if (sa < sb)
+				return -1;
+			else if (sa > sb)
+				return 1;
+			else
+				return 0;
+		}
+	}
+	Acts.prototype.Sort = function (axis)
+	{
+		var x = 0, y = 0, z = 0;
+		var a = this.arr;
+		if (this.cx === 0 || this.cy === 0 || this.cz === 0)
+			return;		// no point sorting empty array
+		switch (axis) {
+		case 0:	// X axis
+			a.sort(function (a, b) {
+				return compareValues(a[0][0], b[0][0]);
+			});
+			break;
+		case 1: // Y axis
+			for ( ; x < this.cx; x++)
+			{
+				a[x].sort(function (a, b) {
+					return compareValues(a[0], b[0]);
+				});
+			}
+			break;
+		case 2:	// Z axis
+			for ( ; x < this.cx; x++)
+			{
+				for (y = 0; y < this.cy; y++)
+				{
+					a[x][y].sort(compareValues);
+				}
+			}
+			break;
+		}
+	};
+	Acts.prototype.Delete = function (index, axis)
+	{
+		var x = 0, y = 0, z = 0;
+		index = Math.floor(index);
+		var a = this.arr;
+		if (index < 0)
+			return;
+		switch (axis) {
+		case 0:	// X axis
+			if (index >= this.cx)
+				break;
+			freeArray(a[index]);
+			a.splice(index, 1);
+			this.cx--;
+			break;
+		case 1: // Y axis
+			if (index >= this.cy)
+				break;
+			for ( ; x < this.cx; x++)
+			{
+				freeArray(a[x][index]);
+				a[x].splice(index, 1);
+			}
+			this.cy--;
+			break;
+		case 2:	// Z axis
+			if (index >= this.cz)
+				break;
+			for ( ; x < this.cx; x++)
+			{
+				for (y = 0; y < this.cy; y++)
+				{
+					a[x][y].splice(index, 1);
+				}
+			}
+			this.cz--;
+			break;
+		}
+	};
+	Acts.prototype.Insert = function (value, index, axis)
+	{
+		var x = 0, y = 0, z = 0;
+		index = Math.floor(index);
+		var a = this.arr;
+		if (index < 0)
+			return;
+		switch (axis) {
+		case 0:	// X axis
+			if (index > this.cx)
+				return;
+			x = index;
+			a.splice(x, 0, allocArray());
+			a[x].length = this.cy;
+			for ( ; y < this.cy; y++)
+			{
+				a[x][y] = allocArray();
+				a[x][y].length = this.cz;
+				for (z = 0; z < this.cz; z++)
+					a[x][y][z] = value;
+			}
+			this.cx++;
+			break;
+		case 1: // Y axis
+			if (index > this.cy)
+				return;
+			for ( ; x < this.cx; x++)
+			{
+				y = index;
+				a[x].splice(y, 0, allocArray());
+				a[x][y].length = this.cz;
+				for (z = 0; z < this.cz; z++)
+					a[x][y][z] = value;
+			}
+			this.cy++;
+			break;
+		case 2:	// Z axis
+			if (index > this.cz)
+				return;
+			for ( ; x < this.cx; x++)
+			{
+				for (y = 0; y < this.cy; y++)
+				{
+					a[x][y].splice(index, 0, value);
+				}
+			}
+			this.cz++;
+			break;
+		}
+	};
+	Acts.prototype.JSONLoad = function (json_)
+	{
+		var o;
+		try {
+			o = JSON.parse(json_);
+		}
+		catch(e) { return; }
+		if (!o["c2array"])		// presumably not a c2array object
+			return;
+		var sz = o["size"];
+		this.cx = sz[0];
+		this.cy = sz[1];
+		this.cz = sz[2];
+		this.arr = o["data"];
+	};
+	Acts.prototype.JSONDownload = function (filename)
+	{
+		var a = document.createElement("a");
+		if (typeof a.download === "undefined")
+		{
+			var str = 'data:text/html,' + encodeURIComponent("<p><a download='" + filename + "' href=\"data:application/json,"
+				+ encodeURIComponent(this.getAsJSON())
+				+ "\">Download link</a></p>");
+			window.open(str);
+		}
+		else
+		{
+			var body = document.getElementsByTagName("body")[0];
+			a.textContent = filename;
+			a.href = "data:application/json," + encodeURIComponent(this.getAsJSON());
+			a.download = filename;
+			body.appendChild(a);
+			var clickEvent = document.createEvent("MouseEvent");
+			clickEvent.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+			a.dispatchEvent(clickEvent);
+			body.removeChild(a);
+		}
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+	Exps.prototype.At = function (ret, x, y_, z_)
+	{
+		var y = y_ || 0;
+		var z = z_ || 0;
+		ret.set_any(this.at(x, y, z));
+	};
+	Exps.prototype.Width = function (ret)
+	{
+		ret.set_int(this.cx);
+	};
+	Exps.prototype.Height = function (ret)
+	{
+		ret.set_int(this.cy);
+	};
+	Exps.prototype.Depth = function (ret)
+	{
+		ret.set_int(this.cz);
+	};
+	Exps.prototype.CurX = function (ret)
+	{
+		ret.set_int(this.forX);
+	};
+	Exps.prototype.CurY = function (ret)
+	{
+		ret.set_int(this.forY);
+	};
+	Exps.prototype.CurZ = function (ret)
+	{
+		ret.set_int(this.forZ);
+	};
+	Exps.prototype.CurValue = function (ret)
+	{
+		ret.set_any(this.at(this.forX, this.forY, this.forZ));
+	};
+	Exps.prototype.Front = function (ret)
+	{
+		ret.set_any(this.at(0, 0, 0));
+	};
+	Exps.prototype.Back = function (ret)
+	{
+		ret.set_any(this.at(this.cx - 1, 0, 0));
+	};
+	Exps.prototype.IndexOf = function (ret, v)
+	{
+		for (var i = 0; i < this.cx; i++)
+		{
+			if (this.arr[i][0][0] === v)
+			{
+				ret.set_int(i);
+				return;
+			}
+		}
+		ret.set_int(-1);
+	};
+	Exps.prototype.LastIndexOf = function (ret, v)
+	{
+		for (var i = this.cx - 1; i >= 0; i--)
+		{
+			if (this.arr[i][0][0] === v)
+			{
+				ret.set_int(i);
+				return;
+			}
+		}
+		ret.set_int(-1);
+	};
+	Exps.prototype.AsJSON = function (ret)
+	{
+		ret.set_string(this.getAsJSON());
+	};
+	pluginProto.exps = new Exps();
+}());
+;
+;
 cr.plugins_.Audio = function(runtime)
 {
 	this.runtime = runtime;
@@ -15741,6 +16419,1082 @@ cr.plugins_.Audio = function(runtime)
 			ret.set_float(analyser.rms);
 		else
 			ret.set_float(0);
+	};
+	pluginProto.exps = new Exps();
+}());
+;
+;
+cr.plugins_.Browser = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.Browser.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+	};
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	instanceProto.onCreate = function()
+	{
+		var self = this;
+		window.addEventListener("resize", function () {
+			self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnResize, self);
+		});
+		if (typeof navigator.onLine !== "undefined")
+		{
+			window.addEventListener("online", function() {
+				self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnOnline, self);
+			});
+			window.addEventListener("offline", function() {
+				self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnOffline, self);
+			});
+		}
+		if (typeof window.applicationCache !== "undefined")
+		{
+			window.applicationCache.addEventListener('updateready', function() {
+				self.runtime.loadingprogress = 1;
+				self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnUpdateReady, self);
+			});
+			window.applicationCache.addEventListener('progress', function(e) {
+				self.runtime.loadingprogress = e["loaded"] / e["total"];
+			});
+		}
+		if (!this.runtime.isDirectCanvas)
+		{
+			document.addEventListener("appMobi.device.update.available", function() {
+				self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnUpdateReady, self);
+			});
+			document.addEventListener("backbutton", function() {
+				self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnBackButton, self);
+			});
+			document.addEventListener("menubutton", function() {
+				self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnMenuButton, self);
+			});
+			document.addEventListener("searchbutton", function() {
+				self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnSearchButton, self);
+			});
+			document.addEventListener("tizenhwkey", function (e) {
+				var ret;
+				switch (e["keyName"]) {
+				case "back":
+					ret = self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnBackButton, self);
+					if (!ret)
+					{
+						if (window["tizen"])
+							window["tizen"]["application"]["getCurrentApplication"]()["exit"]();
+					}
+					break;
+				case "menu":
+					ret = self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnMenuButton, self);
+					if (!ret)
+						e.preventDefault();
+					break;
+				}
+			});
+		}
+		if (this.runtime.isWindowsPhone81)
+		{
+			WinJS["Application"]["onbackclick"] = function (e)
+			{
+				return !!self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnBackButton, self);
+			};
+		}
+		this.runtime.addSuspendCallback(function(s) {
+			if (s)
+			{
+				self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnPageHidden, self);
+			}
+			else
+			{
+				self.runtime.trigger(cr.plugins_.Browser.prototype.cnds.OnPageVisible, self);
+			}
+		});
+		this.is_arcade = (typeof window["is_scirra_arcade"] !== "undefined");
+	};
+	function Cnds() {};
+	Cnds.prototype.CookiesEnabled = function()
+	{
+		return navigator ? navigator.cookieEnabled : false;
+	};
+	Cnds.prototype.IsOnline = function()
+	{
+		return navigator ? navigator.onLine : false;
+	};
+	Cnds.prototype.HasJava = function()
+	{
+		return navigator ? navigator.javaEnabled() : false;
+	};
+	Cnds.prototype.OnOnline = function()
+	{
+		return true;
+	};
+	Cnds.prototype.OnOffline = function()
+	{
+		return true;
+	};
+	Cnds.prototype.IsDownloadingUpdate = function ()
+	{
+		if (typeof window["applicationCache"] === "undefined")
+			return false;
+		else
+			return window["applicationCache"]["status"] === window["applicationCache"]["DOWNLOADING"];
+	};
+	Cnds.prototype.OnUpdateReady = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.PageVisible = function ()
+	{
+		return !this.runtime.isSuspended;
+	};
+	Cnds.prototype.OnPageVisible = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnPageHidden = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnResize = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.IsFullscreen = function ()
+	{
+		return !!(document["mozFullScreen"] || document["webkitIsFullScreen"] || document["fullScreen"] || this.runtime.isNodeFullscreen);
+	};
+	Cnds.prototype.OnBackButton = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnMenuButton = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnSearchButton = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.IsMetered = function ()
+	{
+		var connection = navigator["connection"] || navigator["mozConnection"] || navigator["webkitConnection"];
+		if (!connection)
+			return false;
+		return connection["metered"];
+	};
+	Cnds.prototype.IsCharging = function ()
+	{
+		var battery = navigator["battery"] || navigator["mozBattery"] || navigator["webkitBattery"];
+		if (!battery)
+			return true;
+		return battery["charging"];
+	};
+	Cnds.prototype.IsPortraitLandscape = function (p)
+	{
+		var current = (window.innerWidth <= window.innerHeight ? 0 : 1);
+		return current === p;
+	};
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+	Acts.prototype.Alert = function (msg)
+	{
+		if (!this.runtime.isDomFree)
+			alert(msg.toString());
+	};
+	Acts.prototype.Close = function ()
+	{
+		if (this.runtime.isCocoonJs)
+			CocoonJS["App"]["forceToFinish"]();
+		else if (window["tizen"])
+			window["tizen"]["application"]["getCurrentApplication"]()["exit"]();
+		else if (navigator["app"] && navigator["app"]["exitApp"])
+			navigator["app"]["exitApp"]();
+		else if (navigator["device"] && navigator["device"]["exitApp"])
+			navigator["device"]["exitApp"]();
+		else if (!this.is_arcade && !this.runtime.isDomFree)
+			window.close();
+	};
+	Acts.prototype.Focus = function ()
+	{
+		if (this.runtime.isNodeWebkit)
+		{
+			var win = window["nwgui"]["Window"]["get"]();
+			win["focus"]();
+		}
+		else if (!this.is_arcade && !this.runtime.isDomFree)
+			window.focus();
+	};
+	Acts.prototype.Blur = function ()
+	{
+		if (this.runtime.isNodeWebkit)
+		{
+			var win = window["nwgui"]["Window"]["get"]();
+			win["blur"]();
+		}
+		else if (!this.is_arcade && !this.runtime.isDomFree)
+			window.blur();
+	};
+	Acts.prototype.GoBack = function ()
+	{
+		if (navigator["app"] && navigator["app"]["backHistory"])
+			navigator["app"]["backHistory"]();
+		else if (!this.is_arcade && !this.runtime.isDomFree && window.back)
+			window.back();
+	};
+	Acts.prototype.GoForward = function ()
+	{
+		if (!this.is_arcade && !this.runtime.isDomFree && window.forward)
+			window.forward();
+	};
+	Acts.prototype.GoHome = function ()
+	{
+		if (!this.is_arcade && !this.runtime.isDomFree && window.home)
+			window.home();
+	};
+	Acts.prototype.GoToURL = function (url, target)
+	{
+		if (this.runtime.isCocoonJs)
+			CocoonJS["App"]["openURL"](url);
+		else if (this.runtime.isEjecta)
+			ejecta["openURL"](url);
+		else if (this.runtime.isWinJS)
+			Windows["System"]["Launcher"]["launchUriAsync"](new Windows["Foundation"]["Uri"](url));
+		else if (navigator["app"] && navigator["app"]["loadUrl"])
+			navigator["app"]["loadUrl"](url, { "openExternal": true });
+		else if (!this.is_arcade && !this.runtime.isDomFree)
+		{
+			if (target === 2 && !this.is_arcade)		// top
+				window.top.location = url;
+			else if (target === 1 && !this.is_arcade)	// parent
+				window.parent.location = url;
+			else					// self
+				window.location = url;
+		}
+	};
+	Acts.prototype.GoToURLWindow = function (url, tag)
+	{
+		if (this.runtime.isCocoonJs)
+			CocoonJS["App"]["openURL"](url);
+		else if (this.runtime.isEjecta)
+			ejecta["openURL"](url);
+		else if (this.runtime.isWinJS)
+			Windows["System"]["Launcher"]["launchUriAsync"](new Windows["Foundation"]["Uri"](url));
+		else if (navigator["app"] && navigator["app"]["loadUrl"])
+			navigator["app"]["loadUrl"](url, { "openExternal": true });
+		else if (!this.is_arcade && !this.runtime.isDomFree)
+			window.open(url, tag);
+	};
+	Acts.prototype.Reload = function ()
+	{
+		if (!this.is_arcade && !this.runtime.isDomFree)
+			window.location.reload();
+	};
+	var firstRequestFullscreen = true;
+	var crruntime = null;
+	function onFullscreenError(e)
+	{
+		if (console && console.warn)
+			console.warn("Fullscreen request failed: ", e);
+		crruntime["setSize"](window.innerWidth, window.innerHeight);
+	};
+	Acts.prototype.RequestFullScreen = function (stretchmode)
+	{
+		if (this.runtime.isDomFree)
+		{
+			cr.logexport("[Construct 2] Requesting fullscreen is not supported on this platform - the request has been ignored");
+			return;
+		}
+		if (stretchmode >= 2)
+			stretchmode += 1;
+		if (stretchmode === 6)
+			stretchmode = 2;
+		if (this.runtime.isNodeWebkit)
+		{
+			if (!this.runtime.isNodeFullscreen)
+			{
+				window["nwgui"]["Window"]["get"]()["enterFullscreen"]();
+				this.runtime.isNodeFullscreen = true;
+				this.runtime.fullscreen_scaling = (stretchmode >= 2 ? stretchmode : 0);
+			}
+		}
+		else
+		{
+			if (document["mozFullScreen"] || document["webkitIsFullScreen"] || !!document["msFullscreenElement"] || document["fullScreen"] || document["fullScreenElement"])
+			{
+				return;
+			}
+			this.runtime.fullscreen_scaling = (stretchmode >= 2 ? stretchmode : 0);
+			var elem = this.runtime.canvasdiv || this.runtime.canvas;
+			if (firstRequestFullscreen)
+			{
+				firstRequestFullscreen = false;
+				crruntime = this.runtime;
+				elem.addEventListener("mozfullscreenerror", onFullscreenError);
+				elem.addEventListener("webkitfullscreenerror", onFullscreenError);
+				elem.addEventListener("MSFullscreenError", onFullscreenError);
+				elem.addEventListener("fullscreenerror", onFullscreenError);
+			}
+			if (elem["requestFullscreen"])
+				elem["requestFullscreen"]();
+			else if (elem["mozRequestFullScreen"])
+				elem["mozRequestFullScreen"]();
+			else if (elem["msRequestFullscreen"])
+				elem["msRequestFullscreen"]();
+			else if (elem["webkitRequestFullScreen"])
+			{
+				if (typeof Element !== "undefined" && typeof Element["ALLOW_KEYBOARD_INPUT"] !== "undefined")
+					elem["webkitRequestFullScreen"](Element["ALLOW_KEYBOARD_INPUT"]);
+				else
+					elem["webkitRequestFullScreen"]();
+			}
+		}
+	};
+	Acts.prototype.CancelFullScreen = function ()
+	{
+		if (this.runtime.isDomFree)
+		{
+			cr.logexport("[Construct 2] Exiting fullscreen is not supported on this platform - the request has been ignored");
+			return;
+		}
+		if (this.runtime.isNodeWebkit)
+		{
+			if (this.runtime.isNodeFullscreen)
+			{
+				window["nwgui"]["Window"]["get"]()["leaveFullscreen"]();
+				this.runtime.isNodeFullscreen = false;
+			}
+		}
+		else
+		{
+			if (document["exitFullscreen"])
+				document["exitFullscreen"]();
+			else if (document["mozCancelFullScreen"])
+				document["mozCancelFullScreen"]();
+			else if (document["msExitFullscreen"])
+				document["msExitFullscreen"]();
+			else if (document["webkitCancelFullScreen"])
+				document["webkitCancelFullScreen"]();
+		}
+	};
+	Acts.prototype.Vibrate = function (pattern_)
+	{
+		try {
+			var arr = pattern_.split(",");
+			var i, len;
+			for (i = 0, len = arr.length; i < len; i++)
+			{
+				arr[i] = parseInt(arr[i], 10);
+			}
+			if (navigator["vibrate"])
+				navigator["vibrate"](arr);
+			else if (navigator["mozVibrate"])
+				navigator["mozVibrate"](arr);
+			else if (navigator["webkitVibrate"])
+				navigator["webkitVibrate"](arr);
+			else if (navigator["msVibrate"])
+				navigator["msVibrate"](arr);
+		}
+		catch (e) {}
+	};
+	Acts.prototype.InvokeDownload = function (url_, filename_)
+	{
+		var a = document.createElement("a");
+		if (typeof a["download"] === "undefined")
+		{
+			window.open(url_);
+		}
+		else
+		{
+			var body = document.getElementsByTagName("body")[0];
+			a.textContent = filename_;
+			a.href = url_;
+			a["download"] = filename_;
+			body.appendChild(a);
+			var clickEvent = document.createEvent("MouseEvent");
+			clickEvent.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+			a.dispatchEvent(clickEvent);
+			body.removeChild(a);
+		}
+	};
+	Acts.prototype.InvokeDownloadString = function (str_, mimetype_, filename_)
+	{
+		var datauri = "data:" + mimetype_ + "," + encodeURIComponent(str_);
+		var a = document.createElement("a");
+		if (typeof a["download"] === "undefined")
+		{
+			window.open(datauri);
+		}
+		else
+		{
+			var body = document.getElementsByTagName("body")[0];
+			a.textContent = filename_;
+			a.href = datauri;
+			a["download"] = filename_;
+			body.appendChild(a);
+			var clickEvent = document.createEvent("MouseEvent");
+			clickEvent.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+			a.dispatchEvent(clickEvent);
+			body.removeChild(a);
+		}
+	};
+	Acts.prototype.ConsoleLog = function (type_, msg_)
+	{
+		if (typeof console === "undefined")
+			return;
+		if (type_ === 0 && console.log)
+			console.log(msg_.toString());
+		if (type_ === 1 && console.warn)
+			console.warn(msg_.toString());
+		if (type_ === 2 && console.error)
+			console.error(msg_.toString());
+	};
+	Acts.prototype.ConsoleGroup = function (name_)
+	{
+		if (console && console.group)
+			console.group(name_);
+	};
+	Acts.prototype.ConsoleGroupEnd = function ()
+	{
+		if (console && console.groupEnd)
+			console.groupEnd();
+	};
+	Acts.prototype.ExecJs = function (js_)
+	{
+		try {
+			if (eval)
+				eval(js_);
+		}
+		catch (e)
+		{
+			if (console && console.error)
+				console.error("Error executing Javascript: ", e);
+		}
+	};
+	var orientations = [
+		"portrait",
+		"landscape",
+		"portrait-primary",
+		"portrait-secondary",
+		"landscape-primary",
+		"landscape-secondary"
+	];
+	Acts.prototype.LockOrientation = function (o)
+	{
+		o = Math.floor(o);
+		if (o < 0 || o >= orientations.length)
+			return;
+		this.runtime.autoLockOrientation = false;
+		var orientation = orientations[o];
+		if (screen["lockOrientation"])
+			screen["lockOrientation"](orientation);
+		else if (screen["webkitLockOrientation"])
+			screen["webkitLockOrientation"](orientation);
+		else if (screen["mozLockOrientation"])
+			screen["mozLockOrientation"](orientation);
+		else if (screen["msLockOrientation"])
+			screen["msLockOrientation"](orientation);
+	};
+	Acts.prototype.UnlockOrientation = function ()
+	{
+		this.runtime.autoLockOrientation = false;
+		if (screen["unlockOrientation"])
+			screen["unlockOrientation"]();
+		else if (screen["webkitUnlockOrientation"])
+			screen["webkitUnlockOrientation"]();
+		else if (screen["mozUnlockOrientation"])
+			screen["mozUnlockOrientation"]();
+		else if (screen["msUnlockOrientation"])
+			screen["msUnlockOrientation"]();
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+	Exps.prototype.URL = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : window.location.toString());
+	};
+	Exps.prototype.Protocol = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : window.location.protocol);
+	};
+	Exps.prototype.Domain = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : window.location.hostname);
+	};
+	Exps.prototype.PathName = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : window.location.pathname);
+	};
+	Exps.prototype.Hash = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : window.location.hash);
+	};
+	Exps.prototype.Referrer = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : document.referrer);
+	};
+	Exps.prototype.Title = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : document.title);
+	};
+	Exps.prototype.Name = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : navigator.appName);
+	};
+	Exps.prototype.Version = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : navigator.appVersion);
+	};
+	Exps.prototype.Language = function (ret)
+	{
+		if (navigator && navigator.language)
+			ret.set_string(navigator.language);
+		else
+			ret.set_string("");
+	};
+	Exps.prototype.Platform = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : navigator.platform);
+	};
+	Exps.prototype.Product = function (ret)
+	{
+		if (navigator && navigator.product)
+			ret.set_string(navigator.product);
+		else
+			ret.set_string("");
+	};
+	Exps.prototype.Vendor = function (ret)
+	{
+		if (navigator && navigator.vendor)
+			ret.set_string(navigator.vendor);
+		else
+			ret.set_string("");
+	};
+	Exps.prototype.UserAgent = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : navigator.userAgent);
+	};
+	Exps.prototype.QueryString = function (ret)
+	{
+		ret.set_string(this.runtime.isDomFree ? "" : window.location.search);
+	};
+	Exps.prototype.QueryParam = function (ret, paramname)
+	{
+		if (this.runtime.isDomFree)
+		{
+			ret.set_string("");
+			return;
+		}
+		var match = RegExp('[?&]' + paramname + '=([^&]*)').exec(window.location.search);
+		if (match)
+			ret.set_string(decodeURIComponent(match[1].replace(/\+/g, ' ')));
+		else
+			ret.set_string("");
+	};
+	Exps.prototype.Bandwidth = function (ret)
+	{
+		var connection = navigator["connection"] || navigator["mozConnection"] || navigator["webkitConnection"];
+		if (!connection)
+			ret.set_float(Number.POSITIVE_INFINITY);
+		else
+			ret.set_float(connection["bandwidth"]);
+	};
+	Exps.prototype.BatteryLevel = function (ret)
+	{
+		var battery = navigator["battery"] || navigator["mozBattery"] || navigator["webkitBattery"];
+		if (!battery)
+			ret.set_float(1);
+		else
+			ret.set_float(battery["level"]);
+	};
+	Exps.prototype.BatteryTimeLeft = function (ret)
+	{
+		var battery = navigator["battery"] || navigator["mozBattery"] || navigator["webkitBattery"];
+		if (!battery)
+			ret.set_float(Number.POSITIVE_INFINITY);
+		else
+			ret.set_float(battery["dischargingTime"]);
+	};
+	Exps.prototype.ExecJS = function (ret, js_)
+	{
+		if (!eval)
+		{
+			ret.set_any(0);
+			return;
+		}
+		var result = 0;
+		try {
+			result = eval(js_);
+		}
+		catch (e)
+		{
+			if (console && console.error)
+				console.error("Error executing Javascript: ", e);
+		}
+		if (typeof result === "number")
+			ret.set_any(result);
+		else if (typeof result === "string")
+			ret.set_any(result);
+		else if (typeof result === "boolean")
+			ret.set_any(result ? 1 : 0);
+		else
+			ret.set_any(0);
+	};
+	Exps.prototype.ScreenWidth = function (ret)
+	{
+		ret.set_int(screen.width);
+	};
+	Exps.prototype.ScreenHeight = function (ret)
+	{
+		ret.set_int(screen.height);
+	};
+	Exps.prototype.DevicePixelRatio = function (ret)
+	{
+		ret.set_float(this.runtime.devicePixelRatio);
+	};
+	pluginProto.exps = new Exps();
+}());
+;
+;
+/*
+cr.plugins_.Phonegap = function(runtime)
+{
+	this.runtime = runtime;
+	Type
+		onCreate
+	Instance
+		onCreate
+		draw
+		drawGL
+	cnds
+	acts
+	exps
+};
+*/
+cr.plugins_.Phonegap = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.Phonegap.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+/*
+		var newScriptTag=document.createElement('script');
+		newScriptTag.setAttribute("type","text/javascript");
+		newScriptTag.setAttribute("src", "mylib.js");
+		document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		var scripts=document.getElementsByTagName("script");
+		var exist=false;
+		for(var i=0;i<scripts.length;i++){
+			if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+				exist=true;
+				break;
+			}
+		}
+		if(!exist){
+			var newScriptTag=document.createElement("script");
+			newScriptTag.setAttribute("type","text/javascript");
+			newScriptTag.setAttribute("src", "cordova.js");
+			document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		}
+*/
+		if(this.runtime.isBlackberry10 || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
+			var scripts=document.getElementsByTagName("script");
+			var exist=false;
+			for(var i=0;i<scripts.length;i++){
+				if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+					exist=true;
+					break;
+				}
+			}
+			if(!exist){
+				var newScriptTag=document.createElement("script");
+				newScriptTag.setAttribute("type","text/javascript");
+				newScriptTag.setAttribute("src", "cordova.js");
+				document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+			}
+		}
+	};
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	instanceProto.onCreate = function()
+	{
+/*
+		var self=this;
+		window.addEventListener("resize", function () {//cranberrygame
+			self.runtime.trigger(cr.plugins_.Phonegap.prototype.cnds.TriggerCondition, self);
+		});
+*/
+		this.menu="";
+		var self=this;
+		document.addEventListener("backbutton",
+		function() {
+			self.runtime.trigger(pluginProto.cnds.OnBack, self);
+		}, false);
+		document.addEventListener("menubutton",
+		function() {
+			self.runtime.trigger(pluginProto.cnds.OnMenu, self);
+		}, false);
+		document.addEventListener("onMenuSelected",
+		function(info) {
+			self.menu=info["menu"];
+			self.runtime.trigger(pluginProto.cnds.OnMenuSelected, self);
+		}, false);
+	};
+	instanceProto.draw = function(ctx)
+	{
+	};
+	instanceProto.drawGL = function (glw)
+	{
+	};
+/*
+	instanceProto.at = function (x)
+	{
+		return this.arr[x];
+	};
+	instanceProto.set = function (x, val)
+	{
+		this.arr[x] = val;
+	};
+*/
+	function Cnds() {};
+/*
+	Cnds.prototype.MyCondition = function (myparam)
+	{
+		return myparam >= 0;
+	};
+	Cnds.prototype.TriggerCondition = function ()
+	{
+		return true;
+	};
+*/
+	Cnds.prototype.OnBack = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnMenu = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnMenuSelected = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.SelectedMenuIs = function (_menu)
+	{
+		return this.menu == _menu;
+	};
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+/*
+	Acts.prototype.MyAction = function (myparam)
+	{
+		alert(myparam);
+	};
+	Acts.prototype.TriggerAction = function ()
+	{
+		var self=this;
+		self.runtime.trigger(cr.plugins_.Phonegap.prototype.cnds.TriggerCondition, self);
+	};
+*/
+	Acts.prototype.Close = function (myparam)
+	{
+		navigator["app"]["exitApp"]();
+	};
+	Acts.prototype.CloseIfTwice = function (myparam)
+	{
+		if(this.runtime.isAndroid || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
+			window["exitappiftwice"]["exitAppIfTwice"]();
+		}
+		else{
+			navigator["app"]["exitApp"]();
+		}
+	};
+	Acts.prototype.SetMenus = function (menus)
+	{
+		window["optionsmenu"]["setMenus"](
+		function(info) {
+		},
+		function(error) {
+		}, menus);
+	};
+	Acts.prototype.ShowMenus = function ()
+	{
+		window["optionsmenu"]["showMenus"](
+		function(info) {
+		},
+		function(error) {
+		});
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+/*
+	Exps.prototype.MyExpression = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
+	{
+		ret.set_int(1337);				// return our value
+	};
+	Exps.prototype.Text = function (ret, param) //cranberrygame
+	{
+		ret.set_string("Hello");		// for ef_return_string
+	};
+*/
+	Exps.prototype.Menu = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
+	{
+		ret.set_string(this.menu);		// for ef_return_string
+	};
+	pluginProto.exps = new Exps();
+}());
+;
+;
+/*
+cr.plugins_.PhonegapDialog = function(runtime)
+{
+	this.runtime = runtime;
+	Type
+		onCreate
+	Instance
+		onCreate
+		draw
+		drawGL
+	cnds
+	acts
+	exps
+};
+*/
+cr.plugins_.PhonegapDialog = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.PhonegapDialog.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+/*
+		var newScriptTag=document.createElement('script');
+		newScriptTag.setAttribute("type","text/javascript");
+		newScriptTag.setAttribute("src", "mylib.js");
+		document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		var scripts=document.getElementsByTagName("script");
+		var scriptExist=false;
+		for(var i=0;i<scripts.length;i++){
+			if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+				scriptExist=true;
+				break;
+			}
+		}
+		if(!scriptExist){
+			var newScriptTag=document.createElement("script");
+			newScriptTag.setAttribute("type","text/javascript");
+			newScriptTag.setAttribute("src", "cordova.js");
+			document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		}
+*/
+		if(this.runtime.isBlackberry10 || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
+			var scripts=document.getElementsByTagName("script");
+			var scriptExist=false;
+			for(var i=0;i<scripts.length;i++){
+				if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+					scriptExist=true;
+					break;
+				}
+			}
+			if(!scriptExist){
+				var newScriptTag=document.createElement("script");
+				newScriptTag.setAttribute("type","text/javascript");
+				newScriptTag.setAttribute("src", "cordova.js");
+				document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+			}
+		}
+	};
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	instanceProto.onCreate = function()
+	{
+/*
+		var self=this;
+		window.addEventListener("resize", function () {//cranberrygame
+			self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.TriggerCondition, self);
+		});
+*/
+		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		this.title = null;
+		this.PromptInput = null;
+	};
+	instanceProto.draw = function(ctx)
+	{
+	};
+	instanceProto.drawGL = function (glw)
+	{
+	};
+/*
+	instanceProto.at = function (x)
+	{
+		return this.arr[x];
+	};
+	instanceProto.set = function (x, val)
+	{
+		this.arr[x] = val;
+	};
+*/
+	function Cnds() {};
+/*
+	Cnds.prototype.MyCondition = function (myparam)
+	{
+		return myparam >= 0;
+	};
+	Cnds.prototype.TriggerCondition = function ()
+	{
+		return true;
+	};
+*/
+	Cnds.prototype.ConfirmYesClicked = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.ConfirmNoClicked = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.PromptOkClicked = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.PromptCancelClicked = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.TitleIs = function (title_)
+	{
+		return this.title == title_;
+	};
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+	Acts.prototype.Confirm = function (title, message)
+	{
+		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		var self=this;
+		navigator["notification"]["confirm"](
+			message,
+			function (buttonIndex){
+				if (buttonIndex==1)
+				{
+					self.title = title;
+					self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.ConfirmYesClicked, self);
+				}
+				else if (buttonIndex==2) {
+					self.title = title;
+					self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.ConfirmNoClicked, self);
+				};
+			},
+			title,
+			['Yes','No']
+		);
+	};
+	Acts.prototype.Prompt = function (title,message)
+	{
+		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		var self=this;
+		function onPrompt(results) {
+			alert("You selected button number " + results.buttonIndex + " and entered " + results.input1);
+			if (results.buttonIndex==1){
+				self.title = title;
+				self.PromptInput=results.input1;
+				self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.PromptOkClicked, self);
+			}
+			else if (results.buttonIndex==2){
+				self.title = title;
+				self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.PromptCancelClicked, self);
+			}
+		}
+		navigator["notification"]["prompt"](
+			message,  // message
+			onPrompt,                  // callback to invoke
+			title,            // title
+			['Ok','Cancel'],             // buttonLabels
+			''                 // defaultText
+		);
+	}
+	Acts.prototype.Beep = function (count)
+	{
+		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		navigator["notification"]["beep"](count);
+	}
+	Acts.prototype.Alert = function (title, message)
+	{
+		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		function alertDismissed() {
+		}
+		navigator["notification"]["alert"](
+			message,  // message
+			alertDismissed,         // callback
+			title,            // title
+			'OK'                  // buttonName
+		);
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+/*
+	Exps.prototype.MyExpression = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
+	{
+		ret.set_int(1337);				// return our value
+	};
+	Exps.prototype.Text = function (ret, param) //cranberrygame
+	{
+		ret.set_string("Hello");		// for ef_return_string
+	};
+*/
+	Exps.prototype.PromptInput = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
+	{
+		ret.set_string(this.PromptInput);				// for ef_return_string
 	};
 	pluginProto.exps = new Exps();
 }());
@@ -18963,6 +20717,848 @@ cr.plugins_.WebStorage = function(runtime)
 }());
 ;
 ;
+cr.plugins_.googleplay = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.googleplay.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+	};
+	var applicationId = "";
+	var clientId = "";
+	var isLoaded = false;
+	var fireLoadedFirstTick = false;
+	var isSignedIn = false;
+	var lastError = "";
+	var theInst = null;
+	var my_playerid = "";
+	var my_displayname = "";
+	var my_avatarurl = "";
+	var my_givenname = "";
+	var my_familyname = "";
+	var hiscores_total = 0;
+	var hiscores_mybest = 0;
+	var hiscores_myformattedbest = "";
+	var hiscores_mybesttag = "";
+	var hiscores_myrank = 0;
+	var hiscores_myformattedrank = "";
+	var hiscores_page = null;
+	var achievements_page = null;
+	var achievements_by_id = {};
+	var achievement_trigger_id = "";
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	function addMetaTag(name, content)
+	{
+		var meta = document.createElement("meta");
+		meta["name"] = name;
+		meta["content"] = content;
+		document.head.appendChild(meta);
+	};
+	function addScriptTag(src)
+	{
+		var s = document.createElement("script");
+		s["type"] = "text/javascript";
+		s["async"] = true;
+		s["src"] = src;
+		document.head.appendChild(s);
+	};
+	window["googlePlayLoadCallback"] = function ()
+	{
+		isLoaded = true;
+		if (theInst.runtime.running_layout)
+		{
+			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnLoaded, theInst);
+		}
+		else
+		{
+			fireLoadedFirstTick = true;
+		}
+	};
+	window["googlePlaySigninCallback"] = function (auth)
+	{
+		if (auth["status"] && auth["status"]["signed_in"])
+		{
+			isSignedIn = true;
+			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnSignedIn, theInst);
+		}
+		else if (auth["error"] === "user_signed_out")
+		{
+			isSignedIn = false;
+			lastError = "user_signed_out";
+			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnSignedOut, theInst);
+		}
+		else if (auth["error"] === "immediate_failed")
+		{
+			isSignedIn = false;
+			lastError = "immediate_failed";
+			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAutoSignInFailed, theInst);
+		}
+		else
+		{
+			isSignedIn = false;
+			lastError = auth["error"].toString();
+			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+		}
+	};
+	instanceProto.onCreate = function()
+	{
+		applicationId = this.properties[0];
+		clientId = this.properties[1];
+		if (this.runtime.isDomFree)
+			return;		// cannot add meta tags in dom-free wrappers
+		theInst = this;
+		addMetaTag("google-signin-clientid", clientId);
+		addMetaTag("google-signin-cookiepolicy", "single_host_origin");
+		addMetaTag("google-signin-callback", "googlePlaySigninCallback");
+		addMetaTag("google-signin-scope", "https://www.googleapis.com/auth/games");
+		addScriptTag("https://apis.google.com/js/client.js?onload=googlePlayLoadCallback");
+		this.runtime.tickMe(this);
+	};
+	instanceProto.onDestroy = function ()
+	{
+	};
+	instanceProto.saveToJSON = function ()
+	{
+		return {
+		};
+	};
+	instanceProto.loadFromJSON = function (o)
+	{
+	};
+	instanceProto.onLayoutChange = function ()
+	{
+		if (isLoaded)
+			this.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnLoaded, this);
+		if (isSignedIn)
+			this.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnSignedIn, this);
+	};
+	instanceProto.tick = function ()
+	{
+		if (fireLoadedFirstTick)
+		{
+			fireLoadedFirstTick = false;
+			this.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnLoaded, this);
+		}
+	};
+	function Cnds() {};
+	Cnds.prototype.OnLoaded = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.IsLoaded = function ()
+	{
+		return isLoaded;
+	};
+	Cnds.prototype.OnSignedIn = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnSignedOut = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.IsSignedIn = function ()
+	{
+		return isSignedIn;
+	};
+	Cnds.prototype.OnError = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnPlayerDetails = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnAutoSignInFailed = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnScoreSubmitSuccess = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnScoreSubmitFail = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnHiScoreRequestSuccess = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnHiScoreRequestFail = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnAchievementsRequestSuccess = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnAchievementsRequestFail = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.CompareAchievementState = function (i, s)
+	{
+		var a = getAchievementAt(i);
+		if (!a)
+			return false;
+		var str = a["achievementState"];
+		if (s === 0)
+			return str === "HIDDEN";
+		if (s === 1)
+			return str === "REVEALED";
+		if (s === 2)
+			return str === "UNLOCKED";
+		return false;
+	};
+	Cnds.prototype.OnAchievementsMetadataSuccess = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnAchievementsMetadataFail = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnAchievementRevealed = function (id)
+	{
+		return achievement_trigger_id === id;
+	};
+	Cnds.prototype.OnAchievementUnlocked = function (id)
+	{
+		return achievement_trigger_id === id;
+	};
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+	function getErrorString(err)
+	{
+		if (typeof err === "string")
+			return err;
+		else if (typeof err["message"] === "string")
+			return err["message"]
+		else
+			return "unknown";
+	};
+	Acts.prototype.RequestPlayerDetails = function ()
+	{
+		if (!isSignedIn)
+			return;
+		gapi["client"]["request"]({
+			"path": "/games/v1/players/me",
+			"callback": function (response)
+			{
+				if (!response)
+				{
+					lastError = "no_response";
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				if (response["error"])
+				{
+					lastError = getErrorString(response["error"]);
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				my_playerid = response["playerId"] || "";
+				my_displayname = response["displayName"] || "";
+				my_avatarurl = response["avatarImageUrl"] || "";
+				if (response["name"])
+				{
+					my_givenname = response["name"]["givenName"] || "";
+					my_familyname = response["name"]["familyName"] || "";
+				}
+				else
+				{
+					my_givenname = "";
+					my_familyname = "";
+				}
+				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnPlayerDetails, theInst);
+			}
+		});
+	};
+	Acts.prototype.SignIn = function ()
+	{
+		if (!isLoaded || isSignedIn)
+			return;
+		gapi["auth"]["signIn"]({
+			"callback": window["googlePlaySigninCallback"]
+		});
+	};
+	Acts.prototype.SignOut = function ()
+	{
+		if (!isLoaded || !isSignedIn)
+			return;
+		gapi["auth"]["signOut"]();
+	};
+	Acts.prototype.SubmitScore = function (leaderboardId, score, tag)
+	{
+		if (!isLoaded || !isSignedIn)
+			return;
+		var params = {
+			"leaderboardId": leaderboardId,
+			"score": score
+		};
+		if (tag)
+			params["scoreTag"] = tag;
+		gapi["client"]["request"]({
+			"path": "/games/v1/leaderboards/" + leaderboardId + "/scores",
+			"params": params,
+			"method": "post",
+			"callback": function (response)
+			{
+				if (!response)
+				{
+					lastError = "no_response";
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnScoreSubmitFail, theInst);
+					return;
+				}
+				if (response["error"])
+				{
+					lastError = getErrorString(response["error"]);
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnScoreSubmitFail, theInst);
+					return;
+				}
+				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnScoreSubmitSuccess, theInst);
+			}
+		});
+	};
+	Acts.prototype.RequestHiScores = function (leaderboardId, collection, timespan, maxresults, type)
+	{
+		if (!isLoaded || !isSignedIn)
+			return;
+		var collectionstr = (collection === 0 ? "PUBLIC" : "SOCIAL");
+		var timespanstr = "ALL_TIME";
+		if (timespan === 1)
+			timespanstr = "WEEKLY";
+		else if (timespan === 2)
+			timespanstr = "DAILY";
+		var params = {
+			"leaderboardId": leaderboardId,
+			"collection": collectionstr,
+			"timeSpan": timespanstr,
+			"maxResults": maxresults
+		};
+		var typestr = "scores";
+		if (type === 1)
+			typestr = "window";
+		gapi["client"]["request"]({
+			"path": "/games/v1/leaderboards/" + leaderboardId + "/" + typestr + "/" + collectionstr,
+			"params": params,
+			"callback": function (response)
+			{
+				if (!response)
+				{
+					lastError = "no_response";
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnHiScoreRequestFail, theInst);
+					return;
+				}
+				if (response["error"])
+				{
+					lastError = getErrorString(response["error"]);
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnHiScoreRequestFail, theInst);
+					return;
+				}
+				hiscores_total = parseInt(response["numScores"], 10) || 0;
+				if (response["playerScore"])
+				{
+					hiscores_mybest = parseInt(response["playerScore"]["scoreValue"], 10) || 0;
+					hiscores_myformattedbest = response["playerScore"]["formattedScore"] || "";
+					hiscores_mybesttag = response["playerScore"]["scoreTag"] || "";
+					hiscores_myrank = parseInt(response["playerScore"]["scoreRank"], 10) || 0;
+					hiscores_myformattedrank = response["playerScore"]["formattedScoreRank"] || "";
+				}
+				else
+				{
+					hiscores_mybest = 0;
+					hiscores_myformattedbest = "";
+					hiscores_mybesttag = "";
+					hiscores_myrank = 0;
+					hiscores_myformattedrank = "";
+				}
+				hiscores_page = response["items"];
+				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnHiScoreRequestSuccess, theInst);
+			}
+		});
+	};
+	Acts.prototype.RequestAchievements = function (which)
+	{
+		if (!isLoaded || !isSignedIn)
+			return;
+		var whichstr = "ALL";
+		if (which === 1)
+			whichstr = "HIDDEN";
+		else if (which === 2)
+			whichstr = "REVEALED";
+		else if (which === 3)
+			whichstr = "UNLOCKED";
+		gapi["client"]["request"]({
+			"path": "/games/v1/players/me/achievements",
+			"callback": function (response)
+			{
+				if (!response)
+				{
+					lastError = "no_response";
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsRequestFail, theInst);
+					return;
+				}
+				if (response["error"])
+				{
+					lastError = getErrorString(response["error"]);
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsRequestFail, theInst);
+					return;
+				}
+				achievements_page = response["items"];
+				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsRequestSuccess, theInst);
+			}
+		});
+	};
+	Acts.prototype.RequestAchievementMetadata = function ()
+	{
+		if (!isLoaded || !isSignedIn)
+			return;
+		gapi["client"]["request"]({
+			"path": "/games/v1/achievements",
+			"callback": function (response)
+			{
+				if (!response)
+				{
+					lastError = "no_response";
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsMetadataFail, theInst);
+					return;
+				}
+				if (response["error"])
+				{
+					lastError = getErrorString(response["error"]);
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsMetadataFail, theInst);
+					return;
+				}
+				achievements_by_id = {};
+				var i, len, a, items = response["items"];
+				for (i = 0, len = items.length; i < len; ++i)
+				{
+					a = items[i];
+					achievements_by_id[a["id"]] = {
+						name: a["name"],
+						description: a["description"],
+						type: a["achievementType"],
+						totalSteps: a["totalSteps"],
+						revealedUrl: a["revealedIconUrl"],
+						unlockedUrl: a["unlockedIconUrl"]
+					};
+				}
+				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsMetadataSuccess, theInst);
+			}
+		});
+	};
+	Acts.prototype.RevealAchievement = function (id)
+	{
+		if (!isLoaded || !isSignedIn)
+			return;
+		gapi["client"]["request"]({
+			"path": "/games/v1/achievements/" + id + "/reveal",
+			"method": "post",
+			"callback": function (response)
+			{
+				if (!response)
+				{
+					lastError = "no_response";
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				if (response["error"])
+				{
+					lastError = getErrorString(response["error"]);
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				achievement_trigger_id = id;
+				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementRevealed, theInst);
+			}
+		});
+	};
+	Acts.prototype.UnlockAchievement = function (id)
+	{
+		if (!isLoaded || !isSignedIn)
+			return;
+		gapi["client"]["request"]({
+			"path": "/games/v1/achievements/" + id + "/unlock",
+			"method": "post",
+			"callback": function (response)
+			{
+				if (!response)
+				{
+					lastError = "no_response";
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				if (response["error"])
+				{
+					lastError = getErrorString(response["error"]);
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				if (response["newlyUnlocked"])
+				{
+					achievement_trigger_id = id;
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked, theInst);
+				}
+			}
+		});
+	};
+	Acts.prototype.IncrementAchievement = function (id, steps)
+	{
+		if (!isLoaded || !isSignedIn)
+			return;
+		gapi["client"]["request"]({
+			"path": "/games/v1/achievements/" + id + "/increment",
+			"method": "post",
+			"params": {
+				"stepsToIncrement": steps
+			},
+			"callback": function (response)
+			{
+				if (!response)
+				{
+					lastError = "no_response";
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				if (response["error"])
+				{
+					lastError = getErrorString(response["error"]);
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				if (response["newlyUnlocked"])
+				{
+					achievement_trigger_id = id;
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked, theInst);
+				}
+			}
+		});
+	};
+	Acts.prototype.SetStepsAchievement = function (id, steps)
+	{
+		if (!isLoaded || !isSignedIn)
+			return;
+		gapi["client"]["request"]({
+			"path": "/games/v1/achievements/" + id + "/setStepsAtLeast",
+			"method": "post",
+			"params": {
+				"steps": steps
+			},
+			"callback": function (response)
+			{
+				if (!response)
+				{
+					lastError = "no_response";
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				if (response["error"])
+				{
+					lastError = getErrorString(response["error"]);
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
+					return;
+				}
+				if (response["newlyUnlocked"])
+				{
+					achievement_trigger_id = id;
+					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked, theInst);
+				}
+			}
+		});
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+	Exps.prototype.ErrorMessage = function (ret)
+	{
+		ret.set_string(lastError);
+	};
+	Exps.prototype.MyID = function (ret)
+	{
+		ret.set_string(my_playerid);
+	};
+	Exps.prototype.MyDisplayName = function (ret)
+	{
+		ret.set_string(my_displayname);
+	};
+	Exps.prototype.MyAvatarUrl = function (ret)
+	{
+		ret.set_string(my_avatarurl);
+	};
+	Exps.prototype.MyGivenName = function (ret)
+	{
+		ret.set_string(my_givenname);
+	};
+	Exps.prototype.MyFamilyName = function (ret)
+	{
+		ret.set_string(my_familyname);
+	};
+	Exps.prototype.HiScoreTotalCount = function (ret)
+	{
+		ret.set_int(hiscores_total);
+	};
+	Exps.prototype.HiScoreMyBest = function (ret)
+	{
+		ret.set_int(hiscores_mybest);
+	};
+	Exps.prototype.HiScoreMyBestTag = function (ret)
+	{
+		ret.set_string(hiscores_mybesttag);
+	};
+	Exps.prototype.HiScoreMyFormattedBest = function (ret)
+	{
+		ret.set_string(hiscores_myformattedbest);
+	};
+	Exps.prototype.HiScoreMyBestRank = function (ret)
+	{
+		ret.set_int(hiscores_myrank);
+	};
+	Exps.prototype.HiScoreMyBestFormattedRank = function (ret)
+	{
+		ret.set_string(hiscores_myformattedrank);
+	};
+	Exps.prototype.HiScoreCount = function (ret)
+	{
+		ret.set_int(hiscores_page ? (hiscores_page.length || 0) : 0);
+	};
+	function getScoreAt(i)
+	{
+		if (!hiscores_page)
+			return null;
+		i = Math.floor(i);
+		if (i < 0 || i >= hiscores_page.length)
+			return null;
+		return hiscores_page[i];
+	};
+	Exps.prototype.HiScoreNameAt = function (ret, i)
+	{
+		var s = getScoreAt(i);
+		ret.set_string((s && s["player"]) ? (s["player"]["displayName"] || "") : "");
+	};
+	Exps.prototype.HiScoreRankAt = function (ret, i)
+	{
+		var s = getScoreAt(i);
+		ret.set_int(s ? (parseInt(s["scoreRank"], 10) || 0) : 0);
+	};
+	Exps.prototype.HiScoreAt = function (ret, i)
+	{
+		var s = getScoreAt(i);
+		ret.set_int(s ? (parseInt(s["scoreValue"], 10) || 0) : 0);
+	};
+	Exps.prototype.HiScoreTagAt = function (ret, i)
+	{
+		var s = getScoreAt(i);
+		ret.set_string((s && s["scoreTag"]) ? (s["scoreTag"] || "") : "");
+	};
+	Exps.prototype.HiScoreFormattedAt = function (ret, i)
+	{
+		var s = getScoreAt(i);
+		ret.set_string((s && s["formattedScore"]) ? (s["formattedScore"] || "") : "");
+	};
+	Exps.prototype.HiScoreFormattedRankAt = function (ret, i)
+	{
+		var s = getScoreAt(i);
+		ret.set_string((s && s["formattedScoreRank"]) ? (s["formattedScoreRank"] || "") : "");
+	};
+	function getAchievementAt(i)
+	{
+		if (!achievements_page)
+			return null;
+		i = Math.floor(i);
+		if (i < 0 || i >= achievements_page.length)
+			return null;
+		return achievements_page[i];
+	};
+	function getAchievementMetadataAt(i)
+	{
+		var a = getAchievementAt(i);
+		if (!a)
+			return null;
+		var id = a["id"];
+		if (!achievements_by_id.hasOwnProperty(id))
+			return null;
+		return achievements_by_id[id];
+	};
+	Exps.prototype.AchievementsCount = function (ret)
+	{
+		ret.set_int(achievements_page ? (achievements_page.length || 0) : 0);
+	};
+	Exps.prototype.AchievementIDAt = function (ret, i)
+	{
+		var a = getAchievementAt(i);
+		ret.set_string(a ? (a["id"] || "") : "");
+	};
+	Exps.prototype.AchievementStepsAt = function (ret, i)
+	{
+		var a = getAchievementAt(i);
+		ret.set_int(a ? (a["currentSteps"] || 0) : 0);
+	};
+	Exps.prototype.AchievementNameAt = function (ret, i)
+	{
+		var a = getAchievementMetadataAt(i);
+		ret.set_string(a ? (a.name || "") : "");
+	};
+	Exps.prototype.AchievementDescriptionAt = function (ret, i)
+	{
+		var a = getAchievementMetadataAt(i);
+		ret.set_string(a ? (a.description || "") : "");
+	};
+	Exps.prototype.AchievementTypeAt = function (ret, i)
+	{
+		var a = getAchievementMetadataAt(i);
+		ret.set_string(a ? (a.type || "").toLowerCase() : "");
+	};
+	Exps.prototype.AchievementTotalStepsAt = function (ret, i)
+	{
+		var a = getAchievementMetadataAt(i);
+		ret.set_int(a ? (a.totalSteps || 0) : 0);
+	};
+	Exps.prototype.AchievementRevealedIconURLAt = function (ret, i)
+	{
+		var a = getAchievementMetadataAt(i);
+		ret.set_string(a ? (a.revealedUrl || "") : "");
+	};
+	Exps.prototype.AchievementUnlockedIconURLAt = function (ret, i)
+	{
+		var a = getAchievementMetadataAt(i);
+		ret.set_string(a ? (a.unlockedUrl || "") : "");
+	};
+	pluginProto.exps = new Exps();
+}());
+;
+;
+cr.behaviors.Flash = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var behaviorProto = cr.behaviors.Flash.prototype;
+	behaviorProto.Type = function(behavior, objtype)
+	{
+		this.behavior = behavior;
+		this.objtype = objtype;
+		this.runtime = behavior.runtime;
+	};
+	var behtypeProto = behaviorProto.Type.prototype;
+	behtypeProto.onCreate = function()
+	{
+	};
+	behaviorProto.Instance = function(type, inst)
+	{
+		this.type = type;
+		this.behavior = type.behavior;
+		this.inst = inst;				// associated object instance to modify
+		this.runtime = type.runtime;
+	};
+	var behinstProto = behaviorProto.Instance.prototype;
+	behinstProto.onCreate = function()
+	{
+		this.ontime = 0;
+		this.offtime = 0;
+		this.stage = 0;			// 0 = on, 1 = off
+		this.stagetimeleft = 0;
+		this.timeleft = 0;
+	};
+	behinstProto.saveToJSON = function ()
+	{
+		return {
+			"ontime": this.ontime,
+			"offtime": this.offtime,
+			"stage": this.stage,
+			"stagetimeleft": this.stagetimeleft,
+			"timeleft": this.timeleft
+		};
+	};
+	behinstProto.loadFromJSON = function (o)
+	{
+		this.ontime = o["ontime"];
+		this.offtime = o["offtime"];
+		this.stage = o["stage"];
+		this.stagetimeleft = o["stagetimeleft"];
+		this.timeleft = o["timeleft"];
+	};
+	behinstProto.tick = function ()
+	{
+		if (this.timeleft <= 0)
+			return;		// not flashing
+		var dt = this.runtime.getDt(this.inst);
+		this.timeleft -= dt;
+		if (this.timeleft <= 0)
+		{
+			this.timeleft = 0;
+			this.inst.visible = true;
+			this.runtime.redraw = true;
+			this.runtime.trigger(cr.behaviors.Flash.prototype.cnds.OnFlashEnded, this.inst);
+			return;
+		}
+		this.stagetimeleft -= dt;
+		if (this.stagetimeleft <= 0)
+		{
+			if (this.stage === 0)
+			{
+				this.inst.visible = false;
+				this.stage = 1;
+				this.stagetimeleft += this.offtime;
+			}
+			else
+			{
+				this.inst.visible = true;
+				this.stage = 0;
+				this.stagetimeleft += this.ontime;
+			}
+			this.runtime.redraw = true;
+		}
+	};
+	function Cnds() {};
+	Cnds.prototype.IsFlashing = function ()
+	{
+		return this.timeleft > 0;
+	};
+	Cnds.prototype.OnFlashEnded = function ()
+	{
+		return true;
+	};
+	behaviorProto.cnds = new Cnds();
+	function Acts() {};
+	Acts.prototype.Flash = function (on_, off_, dur_)
+	{
+		this.ontime = on_;
+		this.offtime = off_;
+		this.stage = 1;		// always start off
+		this.stagetimeleft = off_;
+		this.timeleft = dur_;
+		this.inst.visible = false;
+		this.runtime.redraw = true;
+	};
+	Acts.prototype.StopFlashing = function ()
+	{
+		this.timeleft = 0;
+		this.inst.visible = true;
+		this.runtime.redraw = true;
+		return;
+	};
+	behaviorProto.acts = new Acts();
+	function Exps() {};
+	behaviorProto.exps = new Exps();
+}());
+;
+;
 cr.behaviors.Timer = function(runtime)
 {
 	this.runtime = runtime;
@@ -19116,7 +21712,67 @@ cr.getProjectModel = function() { return [
 	"Menu",
 	[
 	[
+		cr.plugins_.Arr,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
 		cr.plugins_.Audio,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.Browser,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.googleplay,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.Phonegap,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.PhonegapDialog,
 		true,
 		false,
 		false,
@@ -19410,9 +22066,10 @@ cr.getProjectModel = function() { return [
 			false,
 			7628839331266489,
 			[
-				["images/icons-sheet0.png", 3214, 0, 0, 128, 128, 1, 0.5, 0.5,[],[],0],
-				["images/icons-sheet1.png", 2899, 0, 0, 128, 128, 1, 0.5, 0.5,[],[],0],
-				["images/icons-sheet2.png", 3041, 0, 0, 128, 128, 1, 0.5, 0.5,[],[],0]
+				["images/icons-sheet0.png", 16774, 1, 1, 128, 128, 1, 0.5, 0.5,[],[],0],
+				["images/icons-sheet0.png", 16774, 131, 1, 128, 128, 1, 0.5, 0.5,[],[],0],
+				["images/icons-sheet0.png", 16774, 261, 1, 128, 128, 1, 0.5, 0.5,[],[],0],
+				["images/icons-sheet0.png", 16774, 1, 131, 128, 128, 1, 0.5, 0.5,[],[],0]
 			]
 			]
 		],
@@ -19480,6 +22137,184 @@ cr.getProjectModel = function() { return [
 ,	[
 		"t13",
 		cr.plugins_.Text,
+		false,
+		[3643985337597365],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		6203494309279262,
+		[],
+		null
+	]
+,	[
+		"t14",
+		cr.plugins_.Text,
+		false,
+		[7358074946307739],
+		1,
+		0,
+		null,
+		null,
+		[
+		[
+			"Flash",
+			cr.behaviors.Flash,
+			2327823488517099
+		]
+		],
+		false,
+		false,
+		8728096308918178,
+		[],
+		null
+	]
+,	[
+		"t15",
+		cr.plugins_.Arr,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		true,
+		false,
+		4850348807032367,
+		[],
+		null
+	]
+,	[
+		"t16",
+		cr.plugins_.Arr,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		true,
+		false,
+		3039025912609046,
+		[],
+		null
+	]
+,	[
+		"t17",
+		cr.plugins_.googleplay,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		3863914982186682,
+		[],
+		null
+		,["786473779429","786473779429-fh78nh2k8r8glbl35jm0u4hrlmhho1nr.apps.googleusercontent.com"]
+	]
+,	[
+		"t18",
+		cr.plugins_.Browser,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		9307176374220441,
+		[],
+		null
+		,[]
+	]
+,	[
+		"t19",
+		cr.plugins_.Sprite,
+		false,
+		[],
+		0,
+		0,
+		null,
+		[
+			[
+			"Default",
+			0,
+			false,
+			1,
+			0,
+			false,
+			7439391566273606,
+			[
+				["images/social-sheet0.png", 41545, 1, 1, 256, 256, 1, 0.5, 0.5,[],[],0],
+				["images/social-sheet0.png", 41545, 259, 1, 256, 256, 1, 0.5, 0.5,[],[],0],
+				["images/social-sheet0.png", 41545, 517, 1, 256, 256, 1, 0.5, 0.5,[],[],0],
+				["images/social-sheet0.png", 41545, 1, 259, 256, 256, 1, 0.5, 0.5,[],[],0]
+			]
+			]
+		],
+		[
+		],
+		false,
+		false,
+		7910996100007089,
+		[],
+		null
+	]
+,	[
+		"t20",
+		cr.plugins_.PhonegapDialog,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		345543209339356,
+		[],
+		null
+		,[]
+	]
+,	[
+		"t21",
+		cr.plugins_.Phonegap,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		89393127116884,
+		[],
+		null
+		,[]
+	]
+,	[
+		"t22",
+		cr.plugins_.Text,
 		true,
 		[],
 		0,
@@ -19496,7 +22331,7 @@ cr.getProjectModel = function() { return [
 	]
 	],
 	[
-		[13,11,8,5,3,4]
+		[22,11,8,5,3,4]
 	],
 	[
 	[
@@ -19900,6 +22735,34 @@ cr.getProjectModel = function() { return [
 		]
 		],
 		[
+			[
+				null,
+				15,
+				83,
+				[
+				],
+				[
+				],
+				[
+					10,
+					1,
+					1
+				]
+			]
+,			[
+				null,
+				16,
+				84,
+				[
+				],
+				[
+				],
+				[
+					10,
+					1,
+					1
+				]
+			]
 		],
 		[]
 	]
@@ -20080,6 +22943,182 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
+		"Settings",
+		720,
+		1280,
+		false,
+		"Settings",
+		2490187287898329,
+		[
+		[
+			"Layer 0",
+			0,
+			6834930462206173,
+			true,
+			[255, 255, 255],
+			false,
+			1,
+			1,
+			1,
+			false,
+			1,
+			0,
+			0,
+			[
+			[
+				[201, 542, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				110,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					3,
+					1
+				]
+			]
+,			[
+				[521, 542, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				111,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					1,
+					1
+				]
+			]
+,			[
+				[361, 802, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				112,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					2,
+					1
+				]
+			]
+,			[
+				[1099, -57, 0, 64, 64, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				6,
+				113,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[205, 543, 0, 328, 84, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				114,
+				[
+					[0]
+				],
+				[
+				],
+				[
+					"off",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[525, 543, 0, 328, 84, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				115,
+				[
+					[1]
+				],
+				[
+				],
+				[
+					"on",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[360, 803, 0, 328, 84, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				116,
+				[
+					[2]
+				],
+				[
+				],
+				[
+					"play",
+					1,
+					"48pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[360, -200, 0, 822, 143, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				4,
+				117,
+				[
+				],
+				[
+				[
+				]
+				],
+				[
+					"Settings",
+					0,
+					"48pt GeosansLight",
+					"rgb(75,75,75)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+			],
+			[			]
+		]
+		],
+		[
+		],
+		[]
+	]
+,	[
 		"GameEnd",
 		720,
 		1280,
@@ -20103,9 +23142,24 @@ cr.getProjectModel = function() { return [
 			0,
 			[
 			[
-				[361, 429, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
-				0,
-				24,
+				[110, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				51,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					3,
+					1
+				]
+			]
+,			[
+				[350, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				52,
 				[
 				],
 				[
@@ -20118,7 +23172,22 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[361, 663, 0, 218.8034210205078, 218.8034210205078, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				[600, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				53,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					2,
+					1
+				]
+			]
+,			[
+				[201, 362, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
 				0,
 				13,
 				[
@@ -20128,12 +23197,230 @@ cr.getProjectModel = function() { return [
 				[
 					0,
 					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[521, 362, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				24,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
 					1,
 					1
 				]
 			]
 ,			[
-				[259, 386, 0, 205, 143, 0, 0, 1, 0, 0, 0, 0, []],
+				[361, 622, 0, 256, 256, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				48,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					2,
+					1
+				]
+			]
+,			[
+				[360, 115, 0, 500, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				86,
+				[
+					[0]
+				],
+				[
+				[
+				]
+				],
+				[
+					"HighScore!!",
+					1,
+					"48pt GeosansLight",
+					"rgb(204,0,204)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[201, 980, 0, 150, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				19,
+				106,
+				[
+				],
+				[
+				],
+				[
+					1,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[521, 980, 0, 150, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				19,
+				107,
+				[
+				],
+				[
+				],
+				[
+					1,
+					"Default",
+					1,
+					1
+				]
+			]
+,			[
+				[361, 980, 0, 150, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				19,
+				108,
+				[
+				],
+				[
+				],
+				[
+					1,
+					"Default",
+					2,
+					1
+				]
+			]
+,			[
+				[360, 850, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				109,
+				[
+					[6]
+				],
+				[
+				],
+				[
+					"share",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+			],
+			[			]
+		]
+,		[
+			"Layer 1",
+			1,
+			1351064699844921,
+			true,
+			[255, 255, 255],
+			true,
+			1,
+			1,
+			1,
+			false,
+			1,
+			0,
+			0,
+			[
+			[
+				[361, 622, 0, 720, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				50,
+				[
+					[2]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"36pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[201, 292, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				5,
+				28,
+				[
+				],
+				[
+				],
+				[
+					"Score",
+					0,
+					"28pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[521, 292, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				5,
+				29,
+				[
+				],
+				[
+				],
+				[
+					"Time",
+					0,
+					"28pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[361, 552, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				5,
+				49,
+				[
+				],
+				[
+				],
+				[
+					"Avg",
+					0,
+					"28pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[201, 522, 0, 720, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				3,
 				16,
 				[
@@ -20143,17 +23430,17 @@ cr.getProjectModel = function() { return [
 				[
 					"0",
 					0,
-					"72pt GeosansLight",
-					"rgb(0,0,0)",
+					"36pt GeosansLight",
+					"rgb(255,255,255)",
 					1,
-					0,
-					0,
+					1,
+					1,
 					0,
 					0
 				]
 			]
 ,			[
-				[197, 618, 0, 331, 143, 0, 0, 1, 0, 0, 0, 0, []],
+				[521, 522, 0, 720, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				4,
 				6,
 				[
@@ -20165,51 +23452,11 @@ cr.getProjectModel = function() { return [
 				[
 					"0",
 					0,
-					"72pt GeosansLight",
-					"rgb(0,0,0)",
+					"36pt GeosansLight",
+					"rgb(255,255,255)",
 					1,
-					0,
-					0,
-					0,
-					0
-				]
-			]
-,			[
-				[316, 346, 0, 248, 54, 0, 0, 1, 0, 0, 0, 0, []],
-				5,
-				28,
-				[
-				],
-				[
-				],
-				[
-					"Score",
-					0,
-					"28pt GeosansLight",
-					"rgb(0,0,0)",
-					0,
-					0,
-					0,
-					0,
-					0
-				]
-			]
-,			[
-				[332, 582, 0, 248, 54, 0, 0, 1, 0, 0, 0, 0, []],
-				5,
-				29,
-				[
-				],
-				[
-				],
-				[
-					"time",
-					0,
-					"28pt GeosansLight",
-					"rgb(0,0,0)",
-					0,
-					0,
-					0,
+					1,
+					1,
 					0,
 					0
 				]
@@ -20411,6 +23658,931 @@ cr.getProjectModel = function() { return [
 					"Default",
 					2,
 					1
+				]
+			]
+			],
+			[			]
+		]
+		],
+		[
+		],
+		[]
+	]
+,	[
+		"Scores",
+		720,
+		1280,
+		false,
+		"Scores",
+		4204739317850852,
+		[
+		[
+			"Layer 0",
+			0,
+			9891887983897921,
+			true,
+			[255, 255, 255],
+			false,
+			1,
+			1,
+			1,
+			false,
+			1,
+			0,
+			0,
+			[
+			[
+				[120, 150, 0, 200, 200, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				54,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[360, 150, 0, 200, 200, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				55,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					3,
+					1
+				]
+			]
+,			[
+				[600, 150, 0, 200, 200, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				56,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					3,
+					1
+				]
+			]
+,			[
+				[120, 150, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				5,
+				57,
+				[
+				],
+				[
+				],
+				[
+					"My Last 10",
+					0,
+					"26pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[360, 150, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				5,
+				58,
+				[
+				],
+				[
+				],
+				[
+					"My Top 10",
+					0,
+					"26pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[600, 150, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				5,
+				59,
+				[
+				],
+				[
+				],
+				[
+					"Global",
+					0,
+					"26pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 330, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				60,
+				[
+					[0]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 410, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				61,
+				[
+					[1]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 490, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				62,
+				[
+					[2]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 570, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				63,
+				[
+					[3]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 650, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				64,
+				[
+					[4]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 730, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				65,
+				[
+					[5]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 810, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				66,
+				[
+					[6]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 890, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				67,
+				[
+					[7]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 970, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				68,
+				[
+					[8]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[540, 1050, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				13,
+				69,
+				[
+					[9]
+				],
+				[
+				],
+				[
+					"0",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 330, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				70,
+				[
+					[0]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 410, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				71,
+				[
+					[1]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 490, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				72,
+				[
+					[2]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 570, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				73,
+				[
+					[3]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 650, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				74,
+				[
+					[4]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 730, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				75,
+				[
+					[5]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 810, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				76,
+				[
+					[6]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 890, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				77,
+				[
+					[7]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 970, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				78,
+				[
+					[8]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[180, 1050, 0, 360, 80, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				79,
+				[
+					[9]
+				],
+				[
+				[
+				]
+				],
+				[
+					"You",
+					0,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[110, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				80,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					3,
+					1
+				]
+			]
+,			[
+				[350, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				81,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					1,
+					1
+				]
+			]
+,			[
+				[600, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				82,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					2,
+					1
+				]
+			]
+			],
+			[			]
+		]
+		],
+		[
+		],
+		[]
+	]
+,	[
+		"Credits",
+		720,
+		1280,
+		false,
+		"Credits",
+		4320793386693274,
+		[
+		[
+			"Layer 0",
+			0,
+			9611142158068538,
+			true,
+			[255, 255, 255],
+			false,
+			1,
+			1,
+			1,
+			false,
+			1,
+			0,
+			0,
+			[
+			[
+				[120, 150, 0, 200, 200, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				87,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[360, 150, 0, 200, 200, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				88,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					3,
+					1
+				]
+			]
+,			[
+				[600, 150, 0, 200, 200, 0, 0, 1, 0.49609375, 0.49609375, 0, 0, []],
+				0,
+				89,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					3,
+					1
+				]
+			]
+,			[
+				[120, 150, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				5,
+				90,
+				[
+				],
+				[
+				],
+				[
+					"Hello",
+					0,
+					"26pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[360, 150, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				5,
+				91,
+				[
+				],
+				[
+				],
+				[
+					"Follow",
+					0,
+					"26pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[600, 150, 0, 248, 54, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				5,
+				92,
+				[
+				],
+				[
+				],
+				[
+					"Wink",
+					0,
+					"26pt GeosansLight",
+					"rgb(255,255,255)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[110, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				93,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					3,
+					1
+				]
+			]
+,			[
+				[350, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				94,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[600, 1500, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				95,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					2,
+					1
+				]
+			]
+,			[
+				[360, 669, 0, 715, 718, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				4,
+				96,
+				[
+				],
+				[
+				[
+				]
+				],
+				[
+					"Hello",
+					0,
+					"72pt GeosansLight",
+					"rgb(75,75,75)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[360, 356, 0, 720, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				3,
+				97,
+				[
+				],
+				[
+				],
+				[
+					"Follow Us",
+					1,
+					"36pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[201, 542, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				19,
+				99,
+				[
+				],
+				[
+				],
+				[
+					1,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[521, 542, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				19,
+				100,
+				[
+				],
+				[
+				],
+				[
+					1,
+					"Default",
+					1,
+					1
+				]
+			]
+,			[
+				[361, 802, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				19,
+				101,
+				[
+				],
+				[
+				],
+				[
+					1,
+					"Default",
+					2,
+					1
+				]
+			]
+,			[
+				[360, 677, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				19,
+				102,
+				[
+				],
+				[
+				],
+				[
+					1,
+					"Default",
+					3,
+					1
+				]
+			]
+,			[
+				[360, 438, 0, 690, 107, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				103,
+				[
+					[0]
+				],
+				[
+				],
+				[
+					"Report / Suggest / Contact",
+					1,
+					"28pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
 				]
 			]
 			],
@@ -23279,8 +27451,8 @@ false,false,130635249387532,false
 				[
 					0,
 					[
-						0,
-						1
+						1,
+						0.5
 					]
 				]
 				]
@@ -25034,12 +29206,68 @@ false,false,4857271161516644,false
 			]
 			]
 		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			4406916183646371,
+			[
+			[
+				21,
+				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				null,
+				1,
+				false,
+				false,
+				false,
+				406509312646703,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.NextPrevLayout,
+				null,
+				4812573453395908,
+				false
+				,[
+				[
+					3,
+					1
+				]
+				]
+			]
+			]
+		]
 		]
 	]
 ,	[
 		"GameEnd",
 		[
 		[
+			1,
+			"topScores",
+			1,
+			"0,0,0,0,0,0,0,0,0,0",
+false,false,5636728232823394,false
+		]
+,		[
+			1,
+			"latestScores",
+			1,
+			"0,0,0,0,0,0,0,0,0,0",
+false,false,5193350506131783,false
+		]
+,		[
+			1,
+			"avg",
+			0,
+			0,
+false,false,2596508113697225,false
+		]
+,		[
 			2,
 			"Global",
 			false
@@ -25065,33 +29293,393 @@ false,false,4857271161516644,false
 			],
 			[
 			[
-				3,
-				cr.plugins_.Text.prototype.acts.SetText,
+				15,
+				cr.plugins_.Arr.prototype.acts.Clear,
 				null,
-				9593258539368088,
+				333943511242838,
+				false
+			]
+,			[
+				16,
+				cr.plugins_.Arr.prototype.acts.Clear,
+				null,
+				9372574642603056,
+				false
+			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+				null,
+				5983341387937298,
 				false
 				,[
 				[
+					1,
+					[
+						2,
+						"gamesPlayed"
+					]
+				]
+,				[
 					7,
 					[
-						23,
-						"score"
+						4,
+						[
+							19,
+							cr.system_object.prototype.exps["int"]
+							,[
+[
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"gamesPlayed"
+								]
+								]
+							]
+							]
+						]
+						,[
+							0,
+							1
+						]
+					]
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				708722502334285,
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.IsSignedIn,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3733081960858415,
+					false
+				]
+				],
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.acts.RequestHiScores,
+					null,
+					9630493277069844,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"HighScore_TouchTheBubble"
+						]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							1
+						]
+					]
+,					[
+						3,
+						0
+					]
 					]
 				]
 				]
 			]
 ,			[
-				4,
-				cr.plugins_.Text.prototype.acts.SetText,
+				0,
 				null,
-				220816273385376,
-				false
-				,[
+				false,
+				null,
+				7989318144537361,
 				[
-					7,
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					7925602875352926,
+					false
+					,[
 					[
-						23,
+						11,
 						"timer_time"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					3958414779159081,
+					false
+					,[
+					[
+						11,
+						"timer_time"
+					]
+,					[
+						7,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2072339983331457,
+				[
+				],
+				[
+				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					9593258539368088,
+					false
+					,[
+					[
+						7,
+						[
+							23,
+							"score"
+						]
+					]
+					]
+				]
+,				[
+					4,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					220816273385376,
+					false
+					,[
+					[
+						7,
+						[
+							23,
+							"timer_time"
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					552301332405671,
+					false
+					,[
+					[
+						11,
+						"avg"
+					]
+,					[
+						7,
+						[
+							7,
+							[
+								19,
+								cr.system_object.prototype.exps.round
+								,[
+[
+									6,
+									[
+										7,
+										[
+											19,
+											cr.system_object.prototype.exps["int"]
+											,[
+[
+												23,
+												"score"
+											]
+											]
+										]
+										,[
+											19,
+											cr.system_object.prototype.exps["int"]
+											,[
+[
+												23,
+												"timer_time"
+											]
+											]
+										]
+									]
+									,[
+										0,
+										1000
+									]
+								]
+								]
+							]
+							,[
+								0,
+								1000
+							]
+						]
+					]
+					]
+				]
+,				[
+					8,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					3243704977332723,
+					false
+					,[
+					[
+						7,
+						[
+							10,
+							[
+								23,
+								"avg"
+							]
+							,[
+								2,
+								"/sec"
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1048986492348018,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					5931329737060857,
+					false
+					,[
+					[
+						11,
+						"avg"
+					]
+,					[
+						8,
+						4
+					]
+,					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps["int"]
+							,[
+[
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"highscore"
+								]
+								]
+							]
+							]
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					4354301148566789,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"highscore"
+						]
+					]
+,					[
+						7,
+						[
+							23,
+							"avg"
+						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					3836973910752606,
+					false
+					,[
+					[
+						3,
+						1
+					]
 					]
 				]
 				]
@@ -25103,33 +29691,2874 @@ false,false,4857271161516644,false
 			null,
 			false,
 			null,
-			5896295127351857,
+			9776989018248648,
 			[
 			[
-				1,
-				cr.plugins_.Touch.prototype.cnds.OnTouchEnd,
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
 				null,
 				1,
 				false,
 				false,
 				false,
-				6042333208475007,
+				9347016662719809,
 				false
 			]
 			],
 			[
 			[
 				-1,
-				cr.system_object.prototype.acts.ResetGlobals,
+				cr.system_object.prototype.acts.SetVar,
 				null,
-				1794509700327491,
+				4969712801996118,
 				false
+				,[
+				[
+					11,
+					"ColorsUID"
+				]
+,				[
+					7,
+					[
+						2,
+						""
+					]
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				1672973108188773,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.ForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					2176695863563434,
+					false
+					,[
+					[
+						4,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.TriggerOnce,
+					null,
+					0,
+					false,
+					false,
+					false,
+					901337779409832,
+					false
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					8151902334901588,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+				]
 			]
 ,			[
+				0,
+				null,
+				false,
+				null,
+				5810221702611896,
+				[
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					9108044965483639,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Grow"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			9365157322566966,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				2044688057880938,
+				false
+				,[
+				[
+					4,
+					0
+				]
+				]
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.SetGroupActive,
+				null,
+				3893201677649143,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"ShrinkCustom"
+					]
+				]
+,				[
+					3,
+					1
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			8635531300666225,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				2754606896414468,
+				false
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				988532739348392,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					false,
+					false,
+					8210337674063927,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"topScoresJSON1"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					2381179147312204,
+					false
+					,[
+					[
+						11,
+						"topScores"
+					]
+,					[
+						7,
+						[
+							20,
+							10,
+							cr.plugins_.WebStorage.prototype.exps.LocalValue,
+							true,
+							null
+							,[
+[
+								2,
+								"topScoresJSON1"
+							]
+							]
+						]
+					]
+					]
+				]
+				]
+				,[
+				[
+					0,
+					null,
+					false,
+					null,
+					955270381031233,
+					[
+					[
+						15,
+						cr.plugins_.Arr.prototype.cnds.ArrForEach,
+						null,
+						0,
+						true,
+						false,
+						false,
+						6381105921057708,
+						false
+						,[
+						[
+							3,
+							2
+						]
+						]
+					]
+					],
+					[
+					[
+						15,
+						cr.plugins_.Arr.prototype.acts.SetX,
+						null,
+						5504774018456126,
+						false
+						,[
+						[
+							0,
+							[
+								20,
+								15,
+								cr.plugins_.Arr.prototype.exps.CurX,
+								false,
+								null
+							]
+						]
+,						[
+							7,
+							[
+								19,
+								cr.system_object.prototype.exps.tokenat
+								,[
+[
+									23,
+									"topScores"
+								]
+,[
+									20,
+									15,
+									cr.plugins_.Arr.prototype.exps.CurX,
+									false,
+									null
+								]
+,[
+									2,
+									","
+								]
+								]
+							]
+						]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				3578851773239514,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Else,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9439493788867941,
+					false
+				]
+				],
+				[
+				]
+				,[
+				[
+					0,
+					null,
+					false,
+					null,
+					7095585543775084,
+					[
+					[
+						15,
+						cr.plugins_.Arr.prototype.cnds.ArrForEach,
+						null,
+						0,
+						true,
+						false,
+						false,
+						8466305357529368,
+						false
+						,[
+						[
+							3,
+							2
+						]
+						]
+					]
+					],
+					[
+					[
+						15,
+						cr.plugins_.Arr.prototype.acts.SetX,
+						null,
+						5345181459903906,
+						false
+						,[
+						[
+							0,
+							[
+								20,
+								15,
+								cr.plugins_.Arr.prototype.exps.CurX,
+								false,
+								null
+							]
+						]
+,						[
+							7,
+							[
+								19,
+								cr.system_object.prototype.exps.tokenat
+								,[
+[
+									23,
+									"topScores"
+								]
+,[
+									20,
+									15,
+									cr.plugins_.Arr.prototype.exps.CurX,
+									false,
+									null
+								]
+,[
+									2,
+									","
+								]
+								]
+							]
+						]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				5844630548566084,
+				[
+				],
+				[
+				[
+					15,
+					cr.plugins_.Arr.prototype.acts.Sort,
+					null,
+					1165251253500612,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				8960777655033949,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3976157078304871,
+					false
+					,[
+					[
+						7,
+						[
+							23,
+							"avg"
+						]
+					]
+,					[
+						8,
+						4
+					]
+,					[
+						7,
+						[
+							20,
+							15,
+							cr.plugins_.Arr.prototype.exps.At,
+							false,
+							null
+							,[
+[
+								0,
+								0
+							]
+							]
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					15,
+					cr.plugins_.Arr.prototype.acts.Delete,
+					null,
+					1142790781898046,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					15,
+					cr.plugins_.Arr.prototype.acts.Insert,
+					null,
+					4542442115801596,
+					false
+					,[
+					[
+						7,
+						[
+							23,
+							"avg"
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					15,
+					cr.plugins_.Arr.prototype.acts.Sort,
+					null,
+					1030909713968422,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				6469770671894185,
+				[
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					8899711605582183,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"topScoresJSON1"
+						]
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									10,
+									[
+										10,
+										[
+											10,
+											[
+												10,
+												[
+													10,
+													[
+														10,
+														[
+															10,
+															[
+																10,
+																[
+																	10,
+																	[
+																		10,
+																		[
+																			10,
+																			[
+																				10,
+																				[
+																					10,
+																					[
+																						10,
+																						[
+																							10,
+																							[
+																								10,
+																								[
+																									20,
+																									15,
+																									cr.plugins_.Arr.prototype.exps.At,
+																									false,
+																									null
+																									,[
+[
+																										0,
+																										0
+																									]
+																									]
+																								]
+																								,[
+																									2,
+																									","
+																								]
+																							]
+																							,[
+																								20,
+																								15,
+																								cr.plugins_.Arr.prototype.exps.At,
+																								false,
+																								null
+																								,[
+[
+																									0,
+																									1
+																								]
+																								]
+																							]
+																						]
+																						,[
+																							2,
+																							","
+																						]
+																					]
+																					,[
+																						20,
+																						15,
+																						cr.plugins_.Arr.prototype.exps.At,
+																						false,
+																						null
+																						,[
+[
+																							0,
+																							2
+																						]
+																						]
+																					]
+																				]
+																				,[
+																					2,
+																					","
+																				]
+																			]
+																			,[
+																				20,
+																				15,
+																				cr.plugins_.Arr.prototype.exps.At,
+																				false,
+																				null
+																				,[
+[
+																					0,
+																					3
+																				]
+																				]
+																			]
+																		]
+																		,[
+																			2,
+																			","
+																		]
+																	]
+																	,[
+																		20,
+																		15,
+																		cr.plugins_.Arr.prototype.exps.At,
+																		false,
+																		null
+																		,[
+[
+																			0,
+																			4
+																		]
+																		]
+																	]
+																]
+																,[
+																	2,
+																	","
+																]
+															]
+															,[
+																20,
+																15,
+																cr.plugins_.Arr.prototype.exps.At,
+																false,
+																null
+																,[
+[
+																	0,
+																	5
+																]
+																]
+															]
+														]
+														,[
+															2,
+															","
+														]
+													]
+													,[
+														20,
+														15,
+														cr.plugins_.Arr.prototype.exps.At,
+														false,
+														null
+														,[
+[
+															0,
+															6
+														]
+														]
+													]
+												]
+												,[
+													2,
+													","
+												]
+											]
+											,[
+												20,
+												15,
+												cr.plugins_.Arr.prototype.exps.At,
+												false,
+												null
+												,[
+[
+													0,
+													7
+												]
+												]
+											]
+										]
+										,[
+											2,
+											","
+										]
+									]
+									,[
+										20,
+										15,
+										cr.plugins_.Arr.prototype.exps.At,
+										false,
+										null
+										,[
+[
+											0,
+											8
+										]
+										]
+									]
+								]
+								,[
+									2,
+									","
+								]
+							]
+							,[
+								20,
+								15,
+								cr.plugins_.Arr.prototype.exps.At,
+								false,
+								null
+								,[
+[
+									0,
+									9
+								]
+								]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			3956682932239324,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				1190675067569664,
+				false
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				653744773675371,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3533411899064148,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"latestScoresJSON1"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					2282906466243581,
+					false
+					,[
+					[
+						11,
+						"latestScores"
+					]
+,					[
+						7,
+						[
+							20,
+							10,
+							cr.plugins_.WebStorage.prototype.exps.LocalValue,
+							true,
+							null
+							,[
+[
+								2,
+								"latestScoresJSON1"
+							]
+							]
+						]
+					]
+					]
+				]
+				]
+				,[
+				[
+					0,
+					null,
+					false,
+					null,
+					9579275811046022,
+					[
+					[
+						16,
+						cr.plugins_.Arr.prototype.cnds.ArrForEach,
+						null,
+						0,
+						true,
+						false,
+						false,
+						9049713595265674,
+						false
+						,[
+						[
+							3,
+							2
+						]
+						]
+					]
+					],
+					[
+					[
+						16,
+						cr.plugins_.Arr.prototype.acts.SetX,
+						null,
+						7211661114378092,
+						false
+						,[
+						[
+							0,
+							[
+								20,
+								16,
+								cr.plugins_.Arr.prototype.exps.CurX,
+								false,
+								null
+							]
+						]
+,						[
+							7,
+							[
+								19,
+								cr.system_object.prototype.exps.tokenat
+								,[
+[
+									23,
+									"latestScores"
+								]
+,[
+									20,
+									16,
+									cr.plugins_.Arr.prototype.exps.CurX,
+									false,
+									null
+								]
+,[
+									2,
+									","
+								]
+								]
+							]
+						]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				279543719321356,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Else,
+					null,
+					0,
+					false,
+					false,
+					false,
+					781449510081625,
+					false
+				]
+				],
+				[
+				]
+				,[
+				[
+					0,
+					null,
+					false,
+					null,
+					478113482279536,
+					[
+					[
+						16,
+						cr.plugins_.Arr.prototype.cnds.ArrForEach,
+						null,
+						0,
+						true,
+						false,
+						false,
+						5165978855907741,
+						false
+						,[
+						[
+							3,
+							2
+						]
+						]
+					]
+					],
+					[
+					[
+						16,
+						cr.plugins_.Arr.prototype.acts.SetX,
+						null,
+						6577084211044482,
+						false
+						,[
+						[
+							0,
+							[
+								20,
+								16,
+								cr.plugins_.Arr.prototype.exps.CurX,
+								false,
+								null
+							]
+						]
+,						[
+							7,
+							[
+								19,
+								cr.system_object.prototype.exps.tokenat
+								,[
+[
+									23,
+									"latestScores"
+								]
+,[
+									20,
+									16,
+									cr.plugins_.Arr.prototype.exps.CurX,
+									false,
+									null
+								]
+,[
+									2,
+									","
+								]
+								]
+							]
+						]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				4597890537132571,
+				[
+				[
+					16,
+					cr.plugins_.Arr.prototype.cnds.ArrForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					2246366065177314,
+					false
+					,[
+					[
+						3,
+						2
+					]
+					]
+				]
+				],
+				[
+				[
+					16,
+					cr.plugins_.Arr.prototype.acts.Delete,
+					null,
+					2317388826659337,
+					false
+					,[
+					[
+						0,
+						[
+							5,
+							[
+								0,
+								9
+							]
+							,[
+								20,
+								16,
+								cr.plugins_.Arr.prototype.exps.CurX,
+								false,
+								null
+							]
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					16,
+					cr.plugins_.Arr.prototype.acts.Insert,
+					null,
+					4289583097969876,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							16,
+							cr.plugins_.Arr.prototype.exps.At,
+							false,
+							null
+							,[
+[
+								5,
+								[
+									0,
+									8
+								]
+								,[
+									20,
+									16,
+									cr.plugins_.Arr.prototype.exps.CurX,
+									false,
+									null
+								]
+							]
+							]
+						]
+					]
+,					[
+						0,
+						[
+							5,
+							[
+								0,
+								9
+							]
+							,[
+								20,
+								16,
+								cr.plugins_.Arr.prototype.exps.CurX,
+								false,
+								null
+							]
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				5458685500123464,
+				[
+				],
+				[
+				[
+					16,
+					cr.plugins_.Arr.prototype.acts.Delete,
+					null,
+					5250127816960661,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					16,
+					cr.plugins_.Arr.prototype.acts.Insert,
+					null,
+					288329874641843,
+					false
+					,[
+					[
+						7,
+						[
+							23,
+							"avg"
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2976449721896829,
+				[
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					4679011156813444,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"latestScoresJSON1"
+						]
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									10,
+									[
+										10,
+										[
+											10,
+											[
+												10,
+												[
+													10,
+													[
+														10,
+														[
+															10,
+															[
+																10,
+																[
+																	10,
+																	[
+																		10,
+																		[
+																			10,
+																			[
+																				10,
+																				[
+																					10,
+																					[
+																						10,
+																						[
+																							10,
+																							[
+																								10,
+																								[
+																									20,
+																									16,
+																									cr.plugins_.Arr.prototype.exps.At,
+																									false,
+																									null
+																									,[
+[
+																										0,
+																										0
+																									]
+																									]
+																								]
+																								,[
+																									2,
+																									","
+																								]
+																							]
+																							,[
+																								20,
+																								16,
+																								cr.plugins_.Arr.prototype.exps.At,
+																								false,
+																								null
+																								,[
+[
+																									0,
+																									1
+																								]
+																								]
+																							]
+																						]
+																						,[
+																							2,
+																							","
+																						]
+																					]
+																					,[
+																						20,
+																						16,
+																						cr.plugins_.Arr.prototype.exps.At,
+																						false,
+																						null
+																						,[
+[
+																							0,
+																							2
+																						]
+																						]
+																					]
+																				]
+																				,[
+																					2,
+																					","
+																				]
+																			]
+																			,[
+																				20,
+																				16,
+																				cr.plugins_.Arr.prototype.exps.At,
+																				false,
+																				null
+																				,[
+[
+																					0,
+																					3
+																				]
+																				]
+																			]
+																		]
+																		,[
+																			2,
+																			","
+																		]
+																	]
+																	,[
+																		20,
+																		16,
+																		cr.plugins_.Arr.prototype.exps.At,
+																		false,
+																		null
+																		,[
+[
+																			0,
+																			4
+																		]
+																		]
+																	]
+																]
+																,[
+																	2,
+																	","
+																]
+															]
+															,[
+																20,
+																16,
+																cr.plugins_.Arr.prototype.exps.At,
+																false,
+																null
+																,[
+[
+																	0,
+																	5
+																]
+																]
+															]
+														]
+														,[
+															2,
+															","
+														]
+													]
+													,[
+														20,
+														16,
+														cr.plugins_.Arr.prototype.exps.At,
+														false,
+														null
+														,[
+[
+															0,
+															6
+														]
+														]
+													]
+												]
+												,[
+													2,
+													","
+												]
+											]
+											,[
+												20,
+												16,
+												cr.plugins_.Arr.prototype.exps.At,
+												false,
+												null
+												,[
+[
+													0,
+													7
+												]
+												]
+											]
+										]
+										,[
+											2,
+											","
+										]
+									]
+									,[
+										20,
+										16,
+										cr.plugins_.Arr.prototype.exps.At,
+										false,
+										null
+										,[
+[
+											0,
+											8
+										]
+										]
+									]
+								]
+								,[
+									2,
+									","
+								]
+							]
+							,[
+								20,
+								16,
+								cr.plugins_.Arr.prototype.exps.At,
+								false,
+								null
+								,[
+[
+									0,
+									9
+								]
+								]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			8699706599394774,
+			[
+			[
+				14,
+				cr.plugins_.Text.prototype.cnds.IsVisible,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2979298128785549,
+				false
+			]
+			],
+			[
+			[
+				14,
+				cr.behaviors.Flash.prototype.acts.Flash,
+				"Flash",
+				4477548534007941,
+				false
+				,[
+				[
+					0,
+					[
+						1,
+						0.5
+					]
+				]
+,				[
+					0,
+					[
+						1,
+						0.5
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			7403764670885066,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.Compare,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2211532352420129,
+				false
+				,[
+				[
+					7,
+					[
+						20,
+						17,
+						cr.plugins_.googleplay.prototype.exps.HiScoreMyBest,
+						false,
+						null
+					]
+				]
+,				[
+					8,
+					2
+				]
+,				[
+					7,
+					[
+						20,
+						10,
+						cr.plugins_.WebStorage.prototype.exps.LocalValue,
+						true,
+						null
+						,[
+[
+							2,
+							"highscore"
+						]
+						]
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				14,
+				cr.plugins_.Text.prototype.acts.SetVisible,
+				null,
+				5771543161504789,
+				false
+				,[
+				[
+					3,
+					1
+				]
+				]
+			]
+,			[
+				17,
+				cr.plugins_.googleplay.prototype.acts.SubmitScore,
+				null,
+				6922543060065761,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"HighScore_TouchTheBubble"
+					]
+				]
+,				[
+					0,
+					[
+						23,
+						"avg"
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"highscore"
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			458983063714855,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+				null,
+				0,
+				false,
+				false,
+				false,
+				8108124971717336,
+				false
+				,[
+				[
+					8,
+					3
+				]
+,				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9288994268515811,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4286509238040003,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					9992947067431593,
+					false
+					,[
+					[
+						6,
+						"Credits"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				8755955909489959,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3078283237382178,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					2888718654062791,
+					false
+					,[
+					[
+						6,
+						"Scores"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				9870436719773192,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					7496776246929501,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							4
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					3785416978474819,
+					false
+					,[
+					[
+						6,
+						"Menu"
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			1705121920041772,
+			[
+			[
+				17,
+				cr.plugins_.googleplay.prototype.cnds.IsSignedIn,
+				null,
+				0,
+				false,
+				false,
+				false,
+				87642850100246,
+				false
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				3942657279800632,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4574003724434721,
+					false
+					,[
+					[
+						11,
+						"avg"
+					]
+,					[
+						8,
+						4
+					]
+,					[
+						7,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+,				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.CompareAchievementState,
+					null,
+					0,
+					false,
+					false,
+					false,
+					1198579720263022,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							1
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				],
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.acts.UnlockAchievement,
+					null,
+					5332809591176768,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQAg"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				8125093569427166,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2031082395623168,
+					false
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps["int"]
+							,[
+[
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"gamesPlayed"
+								]
+								]
+							]
+							]
+						]
+					]
+,					[
+						8,
+						4
+					]
+,					[
+						7,
+						[
+							0,
+							10
+						]
+					]
+					]
+				]
+,				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.CompareAchievementState,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2573754723320866,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				],
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.acts.UnlockAchievement,
+					null,
+					1522958524007849,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQBw"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2277368777099977,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2307227641569053,
+					false
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps["int"]
+							,[
+[
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"gamesPlayed"
+								]
+								]
+							]
+							]
+						]
+					]
+,					[
+						8,
+						4
+					]
+,					[
+						7,
+						[
+							0,
+							25
+						]
+					]
+					]
+				]
+,				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.CompareAchievementState,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3477490749689906,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							3
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				],
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.acts.UnlockAchievement,
+					null,
+					7786775481744721,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQCA"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1590397180519833,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					8279110225644347,
+					false
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps["int"]
+							,[
+[
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"gamesPlayed"
+								]
+								]
+							]
+							]
+						]
+					]
+,					[
+						8,
+						4
+					]
+,					[
+						7,
+						[
+							0,
+							50
+						]
+					]
+					]
+				]
+,				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.CompareAchievementState,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3277016969936817,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							4
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				],
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.acts.UnlockAchievement,
+					null,
+					8636277160383109,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQCQ"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				9656237980375965,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					8585917923144257,
+					false
+					,[
+					[
+						11,
+						"avg"
+					]
+,					[
+						8,
+						5
+					]
+,					[
+						7,
+						[
+							0,
+							5
+						]
+					]
+					]
+				]
+,				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.CompareAchievementState,
+					null,
+					0,
+					false,
+					false,
+					false,
+					811928605592456,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							5
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				],
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.acts.UnlockAchievement,
+					null,
+					958211931077704,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQCg"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				5138351553591579,
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked,
+					null,
+					1,
+					false,
+					false,
+					false,
+					9597622687742946,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQAg"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					9347477513727605,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"Bubble Blaster - Unlocked"
+						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					9842338979835312,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				6393933550912315,
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked,
+					null,
+					1,
+					false,
+					false,
+					false,
+					6990140303893041,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQBw"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					9658534367200501,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"Bubble Blower - Unlocked"
+						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					352791739663181,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1096225198344264,
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked,
+					null,
+					1,
+					false,
+					false,
+					false,
+					9539605118535964,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQCA"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					8115242079051959,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"Bubble Fighter - Unlocked"
+						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					8726181085451187,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				152055326570791,
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked,
+					null,
+					1,
+					false,
+					false,
+					false,
+					2229658593011536,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQCQ"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					7014337882765549,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"Bubble Addict - Unlocked"
+						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					6715577936810083,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				5221282646661698,
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked,
+					null,
+					1,
+					false,
+					false,
+					false,
+					6785912161385584,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQCg"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					8051150873482678,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"Bubble Phaser - Unlocked"
+						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					1608930645548019,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			9705861975903948,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				8091944039879582,
+				false
+				,[
+				[
+					4,
+					19
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				2351606435676553,
+				[
+				[
+					19,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2626509361589133,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					18,
+					cr.plugins_.Browser.prototype.acts.GoToURL,
+					null,
+					3337581541900653,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				9786794374802652,
+				[
+				[
+					19,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4028976922738961,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					18,
+					cr.plugins_.Browser.prototype.acts.GoToURL,
+					null,
+					6125059931730549,
+					false
+					,[
+					[
+						1,
+						[
+							10,
+							[
+								10,
+								[
+									2,
+									"https://twitter.com/intent/tweet?text=I+just+scored+"
+								]
+								,[
+									23,
+									"avg"
+								]
+							]
+							,[
+								2,
+								"+in+Touch+The+Bubble.+Try+to+beat+my+score%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+							]
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				7303999374908644,
+				[
+				[
+					19,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9688705405899628,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					18,
+					cr.plugins_.Browser.prototype.acts.GoToURL,
+					null,
+					3347814364450474,
+					false
+					,[
+					[
+						1,
+						[
+							10,
+							[
+								10,
+								[
+									2,
+									"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=I+just+scored+"
+								]
+								,[
+									23,
+									"avg"
+								]
+							]
+							,[
+								2,
+								"+in+Touch+The+Bubble.+Try+to+beat+my+score%21&redirect_uri=http://facebook.com/"
+							]
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			9961449587629747,
+			[
+			[
+				21,
+				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				null,
+				1,
+				false,
+				false,
+				false,
+				7062564666967323,
+				false
+			]
+			],
+			[
+			[
 				-1,
 				cr.system_object.prototype.acts.GoToLayout,
 				null,
-				5434309185472274,
+				2245399586028243,
 				false
 				,[
 				[
@@ -26258,7 +33687,7 @@ false,false,4857271161516644,false
 				12,
 				cr.plugins_.Audio.prototype.acts.Play,
 				null,
-				3281674975085379,
+				9015589316089041,
 				false
 				,[
 				[
@@ -26272,8 +33701,23 @@ false,false,4857271161516644,false
 ,				[
 					0,
 					[
-						0,
-						0
+						19,
+						cr.system_object.prototype.exps["int"]
+						,[
+[
+							20,
+							10,
+							cr.plugins_.WebStorage.prototype.exps.LocalValue,
+							true,
+							null
+							,[
+[
+								2,
+								"sound"
+							]
+							]
+						]
+						]
 					]
 				]
 ,				[
@@ -26295,7 +33739,7 @@ false,false,4857271161516644,false
 			8884897769229845,
 			[
 			[
-				13,
+				22,
 				cr.plugins_.Text.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -26308,7 +33752,7 @@ false,false,4857271161516644,false
 			],
 			[
 			[
-				13,
+				22,
 				cr.plugins_.Text.prototype.acts.SetWebFont,
 				null,
 				1201840936439848,
@@ -26332,12 +33776,735 @@ false,false,4857271161516644,false
 			]
 			]
 		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			9786005330589611,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.IsGroupActive,
+				null,
+				0,
+				false,
+				false,
+				false,
+				7635753516516495,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"ShrinkCustom"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				3926926128746444,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6653914821803008,
+					false
+				]
+,				[
+					7,
+					cr.plugins_.Sprite.prototype.cnds.CompareY,
+					null,
+					0,
+					false,
+					false,
+					false,
+					5657527097244576,
+					false
+					,[
+					[
+						8,
+						4
+					]
+,					[
+						0,
+						[
+							0,
+							-200
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					7,
+					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					null,
+					9180843058889717,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							-90
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							15
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2860134200217482,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6504970379965971,
+					false
+				]
+,				[
+					9,
+					cr.plugins_.Sprite.prototype.cnds.CompareY,
+					null,
+					0,
+					false,
+					false,
+					false,
+					410804218981207,
+					false
+					,[
+					[
+						8,
+						2
+					]
+,					[
+						0,
+						[
+							0,
+							1500
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					9,
+					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					null,
+					781801082813034,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							90
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							15
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			3813809126983644,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.Else,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2963792366999915,
+				false
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				4114031328419257,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6678233195173775,
+					false
+				]
+,				[
+					7,
+					cr.plugins_.Sprite.prototype.cnds.CompareY,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4111334099655745,
+					false
+					,[
+					[
+						8,
+						2
+					]
+,					[
+						0,
+						[
+							0,
+							160
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					7,
+					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					null,
+					7585534948095227,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							90
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							15
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2895358669138693,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.EveryTick,
+					null,
+					0,
+					false,
+					false,
+					false,
+					7551014050440186,
+					false
+				]
+,				[
+					9,
+					cr.plugins_.Sprite.prototype.cnds.CompareY,
+					null,
+					0,
+					false,
+					false,
+					false,
+					5228502291883652,
+					false
+					,[
+					[
+						8,
+						4
+					]
+,					[
+						0,
+						[
+							0,
+							1180
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					9,
+					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					null,
+					2001659614132565,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							-90
+						]
+					]
+,					[
+						0,
+						[
+							0,
+							15
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			5601422887675498,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				4773977811123977,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				7225939491500868,
+				false
+				,[
+				[
+					11,
+					"touchType"
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			3525368059041669,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTouchStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				9233903370166277,
+				false
+			]
+,			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.IsTouchingObject,
+				null,
+				0,
+				false,
+				false,
+				false,
+				8571421908412877,
+				false
+				,[
+				[
+					4,
+					9
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				3604490385089089,
+				[
+				[
+					9,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					7840114138250715,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					3803453778840184,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"ShrinkCustom"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					6943310054304813,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						7,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1619200346114732,
+				[
+				[
+					9,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6688146209320228,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					4143582242988424,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"ShrinkCustom"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					2306388009372458,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						7,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				5358773612251372,
+				[
+				[
+					9,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					1195809197202104,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					9235973274133849,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"ShrinkCustom"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					658517299744049,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						7,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				914692751978504,
+				[
+				[
+					9,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					7150473594410495,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					4733004395832051,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"ShrinkCustom"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					2429041088022164,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						7,
+						[
+							0,
+							4
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
 		]
 	]
 ,	[
 		"Menu",
 		[
 		[
+			1,
+			"touchType",
+			0,
+			0,
+false,false,5068828181573646,false
+		]
+,		[
 			2,
 			"Global",
 			false
@@ -26448,9 +34615,95 @@ false,false,4857271161516644,false
 				]
 				]
 			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+				null,
+				384770223716638,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"name"
+					]
+				]
+,				[
+					7,
+					[
+						2,
+						"Unknown"
+					]
+				]
+				]
+			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+				null,
+				5115819035478323,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"sound"
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
 			]
 			,[
 			[
+				0,
+				null,
+				false,
+				null,
+				3995244836296517,
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.IsSignedIn,
+					null,
+					0,
+					false,
+					true,
+					false,
+					6995127690197003,
+					false
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.TriggerOnce,
+					null,
+					0,
+					false,
+					false,
+					false,
+					1580797187330268,
+					false
+				]
+				],
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.acts.SignIn,
+					null,
+					6166008156737264,
+					false
+				]
+				]
+			]
+,			[
 				0,
 				null,
 				false,
@@ -26552,6 +34805,276 @@ false,false,4857271161516644,false
 ,					[
 						3,
 						1
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				4420337424881465,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					true,
+					false,
+					8256384031562737,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"topScoresJSON1"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					8150012727248494,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"topScoresJSON1"
+						]
+					]
+,					[
+						7,
+						[
+							2,
+							"0,0,0,0,0,0,0,0,0,0"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				5309576323265795,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					true,
+					false,
+					100065423033152,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"latestScoresJSON1"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					1514474143363702,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"latestScoresJSON1"
+						]
+					]
+,					[
+						7,
+						[
+							2,
+							"0,0,0,0,0,0,0,0,0,0"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				4405304474491051,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					true,
+					false,
+					9919468932030908,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"globalScoresJSON1"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					5155111482079496,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"globalScoresJSON1"
+						]
+					]
+,					[
+						7,
+						[
+							2,
+							"-:0,-:0,-:0,-:0,-:0,-:0,-:0,-:0,-:0,-:0"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				8501303907718071,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					true,
+					false,
+					8826690249250825,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"gamesPlayed"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					2002336905972899,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"gamesPlayed"
+						]
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				929146785589489,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					true,
+					false,
+					1222301032688271,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"highscore"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					565608480734718,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"highscore"
+						]
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
 					]
 					]
 				]
@@ -26672,6 +35195,17 @@ false,false,4857271161516644,false
 					]
 				]
 				]
+			]
+,			[
+				17,
+				cr.plugins_.googleplay.prototype.cnds.IsSignedIn,
+				null,
+				0,
+				false,
+				false,
+				false,
+				6630280218826947,
+				false
 			]
 			],
 			[
@@ -27065,6 +35599,17 @@ false,false,4857271161516644,false
 				]
 				]
 			]
+,			[
+				17,
+				cr.plugins_.googleplay.prototype.cnds.IsSignedIn,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2543442467681382,
+				false
+			]
 			],
 			[
 			[
@@ -27298,50 +35843,6 @@ false,false,4857271161516644,false
 			]
 			],
 			[
-			[
-				-1,
-				cr.system_object.prototype.acts.GoToLayout,
-				null,
-				5066021781031929,
-				false
-				,[
-				[
-					6,
-					"Select"
-				]
-				]
-			]
-			]
-		]
-,		[
-			0,
-			null,
-			false,
-			null,
-			3032936024638133,
-			[
-			[
-				-1,
-				cr.system_object.prototype.cnds.IsGroupActive,
-				null,
-				0,
-				false,
-				false,
-				false,
-				3482750517586282,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"ShrinkCustom"
-					]
-				]
-				]
-			]
-			],
-			[
 			]
 			,[
 			[
@@ -27349,39 +35850,32 @@ false,false,4857271161516644,false
 				null,
 				false,
 				null,
-				9146224893216709,
+				8330751428704598,
 				[
 				[
 					-1,
-					cr.system_object.prototype.cnds.EveryTick,
+					cr.system_object.prototype.cnds.CompareVar,
 					null,
 					0,
 					false,
 					false,
 					false,
-					5196138332130897,
-					false
-				]
-,				[
-					7,
-					cr.plugins_.Sprite.prototype.cnds.CompareY,
-					null,
-					0,
-					false,
-					false,
-					false,
-					2887770290554075,
+					9718468305580301,
 					false
 					,[
 					[
-						8,
-						4
+						11,
+						"touchType"
 					]
 ,					[
-						0,
+						8,
+						0
+					]
+,					[
+						7,
 						[
 							0,
-							-200
+							0
 						]
 					]
 					]
@@ -27389,25 +35883,15 @@ false,false,4857271161516644,false
 				],
 				[
 				[
-					7,
-					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
 					null,
-					7036732650858215,
+					5066021781031929,
 					false
 					,[
 					[
-						0,
-						[
-							0,
-							-90
-						]
-					]
-,					[
-						0,
-						[
-							0,
-							15
-						]
+						6,
+						"Select"
 					]
 					]
 				]
@@ -27418,39 +35902,32 @@ false,false,4857271161516644,false
 				null,
 				false,
 				null,
-				2579859519027443,
+				7754282843430678,
 				[
 				[
 					-1,
-					cr.system_object.prototype.cnds.EveryTick,
+					cr.system_object.prototype.cnds.CompareVar,
 					null,
 					0,
 					false,
 					false,
 					false,
-					5320404742006137,
-					false
-				]
-,				[
-					9,
-					cr.plugins_.Sprite.prototype.cnds.CompareY,
-					null,
-					0,
-					false,
-					false,
-					false,
-					2004841464047254,
+					5366838127976428,
 					false
 					,[
 					[
-						8,
-						2
+						11,
+						"touchType"
 					]
 ,					[
-						0,
+						8,
+						0
+					]
+,					[
+						7,
 						[
 							0,
-							1500
+							1
 						]
 					]
 					]
@@ -27458,118 +35935,15 @@ false,false,4857271161516644,false
 				],
 				[
 				[
-					9,
-					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
-					null,
-					5167715082811648,
-					false
-					,[
-					[
-						0,
-						[
-							0,
-							90
-						]
-					]
-,					[
-						0,
-						[
-							0,
-							15
-						]
-					]
-					]
-				]
-				]
-			]
-			]
-		]
-,		[
-			0,
-			null,
-			false,
-			null,
-			6424950859173502,
-			[
-			[
-				-1,
-				cr.system_object.prototype.cnds.Else,
-				null,
-				0,
-				false,
-				false,
-				false,
-				6174349204809962,
-				false
-			]
-			],
-			[
-			]
-			,[
-			[
-				0,
-				null,
-				false,
-				null,
-				9853275996950288,
-				[
-				[
 					-1,
-					cr.system_object.prototype.cnds.EveryTick,
+					cr.system_object.prototype.acts.GoToLayout,
 					null,
-					0,
-					false,
-					false,
-					false,
-					4614305489579954,
-					false
-				]
-,				[
-					7,
-					cr.plugins_.Sprite.prototype.cnds.CompareY,
-					null,
-					0,
-					false,
-					false,
-					false,
-					435391828483369,
+					388811109671301,
 					false
 					,[
 					[
-						8,
-						2
-					]
-,					[
-						0,
-						[
-							0,
-							160
-						]
-					]
-					]
-				]
-				],
-				[
-				[
-					7,
-					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
-					null,
-					9207310788332666,
-					false
-					,[
-					[
-						0,
-						[
-							0,
-							90
-						]
-					]
-,					[
-						0,
-						[
-							0,
-							15
-						]
+						6,
+						"Scores"
 					]
 					]
 				]
@@ -27580,39 +35954,32 @@ false,false,4857271161516644,false
 				null,
 				false,
 				null,
-				4203566569886853,
+				1629178569166093,
 				[
 				[
 					-1,
-					cr.system_object.prototype.cnds.EveryTick,
+					cr.system_object.prototype.cnds.CompareVar,
 					null,
 					0,
 					false,
 					false,
 					false,
-					8365352341294747,
-					false
-				]
-,				[
-					9,
-					cr.plugins_.Sprite.prototype.cnds.CompareY,
-					null,
-					0,
-					false,
-					false,
-					false,
-					2491739140752415,
+					6086950318890484,
 					false
 					,[
 					[
-						8,
-						4
+						11,
+						"touchType"
 					]
 ,					[
-						0,
+						8,
+						0
+					]
+,					[
+						7,
 						[
 							0,
-							1180
+							2
 						]
 					]
 					]
@@ -27620,25 +35987,119 @@ false,false,4857271161516644,false
 				],
 				[
 				[
-					9,
-					cr.plugins_.Sprite.prototype.acts.MoveAtAngle,
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
 					null,
-					7054427897741555,
+					5092103496257092,
 					false
 					,[
 					[
-						0,
-						[
-							0,
-							-90
-						]
+						6,
+						"Credits"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				72415199573988,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6703301702414669,
+					false
+					,[
+					[
+						11,
+						"touchType"
 					]
 ,					[
-						0,
+						8,
+						0
+					]
+,					[
+						7,
 						[
 							0,
-							15
+							3
 						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					4986750866251087,
+					false
+					,[
+					[
+						6,
+						"Scores"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				3240412301219944,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					7894178866299967,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							4
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					1242077495336188,
+					false
+					,[
+					[
+						6,
+						"Scores"
 					]
 					]
 				]
@@ -27765,11 +36226,4530 @@ false,false,4857271161516644,false
 			]
 			]
 		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			7081483414688686,
+			[
+			[
+				17,
+				cr.plugins_.googleplay.prototype.cnds.IsSignedIn,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3397950520020903,
+				false
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.TriggerOnce,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2446853465568306,
+				false
+			]
+			],
+			[
+			[
+				17,
+				cr.plugins_.googleplay.prototype.acts.RequestPlayerDetails,
+				null,
+				7013712937502986,
+				false
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			333333077602447,
+			[
+			[
+				17,
+				cr.plugins_.googleplay.prototype.cnds.OnPlayerDetails,
+				null,
+				1,
+				false,
+				false,
+				false,
+				4611973603628392,
+				false
+			]
+			],
+			[
+			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+				null,
+				894960454632217,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"name"
+					]
+				]
+,				[
+					7,
+					[
+						20,
+						17,
+						cr.plugins_.googleplay.prototype.exps.MyDisplayName,
+						true,
+						null
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			9073488366302872,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTouchStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				3711796396965276,
+				false
+			]
+,			[
+				17,
+				cr.plugins_.googleplay.prototype.cnds.IsSignedIn,
+				null,
+				0,
+				false,
+				true,
+				false,
+				8937634802960243,
+				false
+			]
+			],
+			[
+			[
+				17,
+				cr.plugins_.googleplay.prototype.acts.SignIn,
+				null,
+				4395283394663938,
+				false
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			4896963974408381,
+			[
+			[
+				21,
+				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				null,
+				1,
+				false,
+				false,
+				false,
+				1380342638027387,
+				false
+			]
+			],
+			[
+			[
+				20,
+				cr.plugins_.PhonegapDialog.prototype.acts.Confirm,
+				null,
+				1003404360179183,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"Exit"
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"Are you sure you want to exit?"
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			4199469758556437,
+			[
+			[
+				20,
+				cr.plugins_.PhonegapDialog.prototype.cnds.ConfirmYesClicked,
+				null,
+				1,
+				false,
+				false,
+				false,
+				9847811772109149,
+				false
+			]
+			],
+			[
+			[
+				21,
+				cr.plugins_.Phonegap.prototype.acts.Close,
+				null,
+				9342096153153293,
+				false
+			]
+			]
+		]
+		]
+	]
+,	[
+		"Scores",
+		[
+		[
+			2,
+			"Global",
+			false
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			1377979065774404,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				4809304424362781,
+				false
+				,[
+				[
+					4,
+					0
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				3427810928656413,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.PickAll,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4125626356995723,
+					false
+					,[
+					[
+						4,
+						0
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					4661272175455742,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				6578141963393638,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					5272475403123035,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							54
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					9919094224919448,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					8793002391310749,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"You"
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					6177774602534493,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"setTopScores"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					8631901277709225,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"setGlobalScores"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					6288121661122179,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"setLatestScores"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2917294638560105,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9296289206347528,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							55
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					5360087562696482,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					8084254120277718,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"You"
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					1498970922311072,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"setLatestScores"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					3664146567228874,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"setGlobalScores"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					2852876640256414,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"setTopScores"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				3108981562313492,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9030884230587066,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							56
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					4772867175597332,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					9332497597099332,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"-"
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					7925980620453159,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"setTopScores"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					7994160539317955,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"setLatestScores"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					9485943891512243,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"setGlobalScores"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					17,
+					cr.plugins_.googleplay.prototype.acts.RequestHiScores,
+					null,
+					3622704098789213,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"CgkI5YH26_EWEAIQAQ"
+						]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						3,
+						1
+					]
+,					[
+						0,
+						[
+							0,
+							10
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			6952740088437897,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				9646187514729906,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				1109214638641491,
+				false
+				,[
+				[
+					11,
+					"ColorsUID"
+				]
+,				[
+					7,
+					[
+						2,
+						""
+					]
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9412373651116917,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.ForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					520887224909141,
+					false
+					,[
+					[
+						4,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.TriggerOnce,
+					null,
+					0,
+					false,
+					false,
+					false,
+					1116709269090505,
+					false
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					937282733681871,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				7393714084969139,
+				[
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					2797923529763358,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Grow"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			366102403479883,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				7424977059904495,
+				false
+			]
+			],
+			[
+			[
+				13,
+				cr.plugins_.Text.prototype.acts.SetText,
+				null,
+				8192396255412037,
+				false
+				,[
+				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				15,
+				cr.plugins_.Arr.prototype.acts.Clear,
+				null,
+				686945963515504,
+				false
+			]
+,			[
+				16,
+				cr.plugins_.Arr.prototype.acts.Clear,
+				null,
+				9078977160809198,
+				false
+			]
+,			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				2602037235651311,
+				false
+				,[
+				[
+					11,
+					"topScores"
+				]
+,				[
+					7,
+					[
+						20,
+						10,
+						cr.plugins_.WebStorage.prototype.exps.LocalValue,
+						true,
+						null
+						,[
+[
+							2,
+							"topScoresJSON1"
+						]
+						]
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				1397128467594334,
+				false
+				,[
+				[
+					11,
+					"latestScores"
+				]
+,				[
+					7,
+					[
+						20,
+						10,
+						cr.plugins_.WebStorage.prototype.exps.LocalValue,
+						true,
+						null
+						,[
+[
+							2,
+							"latestScoresJSON1"
+						]
+						]
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.acts.SetGroupActive,
+				null,
+				8829988018557129,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"setLatestScores"
+					]
+				]
+,				[
+					3,
+					1
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				5062021441564633,
+				[
+				[
+					15,
+					cr.plugins_.Arr.prototype.cnds.ArrForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					8541179634527622,
+					false
+					,[
+					[
+						3,
+						2
+					]
+					]
+				]
+				],
+				[
+				[
+					15,
+					cr.plugins_.Arr.prototype.acts.SetX,
+					null,
+					2774045502021322,
+					false
+					,[
+					[
+						0,
+						[
+							20,
+							15,
+							cr.plugins_.Arr.prototype.exps.CurX,
+							false,
+							null
+						]
+					]
+,					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.tokenat
+							,[
+[
+								23,
+								"topScores"
+							]
+,[
+								20,
+								15,
+								cr.plugins_.Arr.prototype.exps.CurX,
+								false,
+								null
+							]
+,[
+								2,
+								","
+							]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				267148084514612,
+				[
+				[
+					16,
+					cr.plugins_.Arr.prototype.cnds.ArrForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					4953808188963239,
+					false
+					,[
+					[
+						3,
+						2
+					]
+					]
+				]
+				],
+				[
+				[
+					16,
+					cr.plugins_.Arr.prototype.acts.SetX,
+					null,
+					2702240343576593,
+					false
+					,[
+					[
+						0,
+						[
+							20,
+							16,
+							cr.plugins_.Arr.prototype.exps.CurX,
+							false,
+							null
+						]
+					]
+,					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.tokenat
+							,[
+[
+								23,
+								"latestScores"
+							]
+,[
+								20,
+								16,
+								cr.plugins_.Arr.prototype.exps.CurX,
+								false,
+								null
+							]
+,[
+								2,
+								","
+							]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			[false, "setTopScores"],
+			false,
+			null,
+			7867340427003928,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.IsGroupActive,
+				null,
+				0,
+				false,
+				false,
+				false,
+				7867340427003928,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"setTopScores"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9684635550262084,
+				[
+				[
+					15,
+					cr.plugins_.Arr.prototype.cnds.ArrForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					3415829204515786,
+					false
+					,[
+					[
+						3,
+						2
+					]
+					]
+				]
+				],
+				[
+				[
+					13,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					5397984542821435,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							15,
+							cr.plugins_.Arr.prototype.exps.At,
+							false,
+							null
+							,[
+[
+								5,
+								[
+									0,
+									9
+								]
+								,[
+									21,
+									13,
+									false,
+									null
+									,0
+								]
+							]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			[false, "setLatestScores"],
+			false,
+			null,
+			889463251932979,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.IsGroupActive,
+				null,
+				0,
+				false,
+				false,
+				false,
+				889463251932979,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"setLatestScores"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9684635550262084,
+				[
+				[
+					16,
+					cr.plugins_.Arr.prototype.cnds.ArrForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					9286766334716188,
+					false
+					,[
+					[
+						3,
+						2
+					]
+					]
+				]
+				],
+				[
+				[
+					13,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					5397984542821435,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							16,
+							cr.plugins_.Arr.prototype.exps.At,
+							false,
+							null
+							,[
+[
+								21,
+								13,
+								false,
+								null
+								,0
+							]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			[false, "setGlobalScores"],
+			false,
+			null,
+			7704678371085959,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.IsGroupActive,
+				null,
+				0,
+				false,
+				false,
+				false,
+				7704678371085959,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"setGlobalScores"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				2507087271206715,
+				[
+				[
+					17,
+					cr.plugins_.googleplay.prototype.cnds.OnHiScoreRequestSuccess,
+					null,
+					1,
+					false,
+					false,
+					false,
+					9475023059361217,
+					false
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					8379308089844356,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"globalScoresJSON1"
+						]
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									10,
+									[
+										10,
+										[
+											10,
+											[
+												10,
+												[
+													10,
+													[
+														10,
+														[
+															10,
+															[
+																10,
+																[
+																	10,
+																	[
+																		10,
+																		[
+																			10,
+																			[
+																				10,
+																				[
+																					10,
+																					[
+																						10,
+																						[
+																							10,
+																							[
+																								10,
+																								[
+																									10,
+																									[
+																										10,
+																										[
+																											10,
+																											[
+																												10,
+																												[
+																													10,
+																													[
+																														10,
+																														[
+																															10,
+																															[
+																																10,
+																																[
+																																	10,
+																																	[
+																																		10,
+																																		[
+																																			10,
+																																			[
+																																				10,
+																																				[
+																																					10,
+																																					[
+																																						10,
+																																						[
+																																							10,
+																																							[
+																																								10,
+																																								[
+																																									10,
+																																									[
+																																										10,
+																																										[
+																																											10,
+																																											[
+																																												10,
+																																												[
+																																													20,
+																																													17,
+																																													cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+																																													true,
+																																													null
+																																													,[
+[
+																																														0,
+																																														0
+																																													]
+																																													]
+																																												]
+																																												,[
+																																													2,
+																																													":"
+																																												]
+																																											]
+																																											,[
+																																												20,
+																																												17,
+																																												cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+																																												false,
+																																												null
+																																												,[
+[
+																																													0,
+																																													0
+																																												]
+																																												]
+																																											]
+																																										]
+																																										,[
+																																											2,
+																																											","
+																																										]
+																																									]
+																																									,[
+																																										20,
+																																										17,
+																																										cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+																																										true,
+																																										null
+																																										,[
+[
+																																											0,
+																																											1
+																																										]
+																																										]
+																																									]
+																																								]
+																																								,[
+																																									2,
+																																									":"
+																																								]
+																																							]
+																																							,[
+																																								20,
+																																								17,
+																																								cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+																																								false,
+																																								null
+																																								,[
+[
+																																									0,
+																																									1
+																																								]
+																																								]
+																																							]
+																																						]
+																																						,[
+																																							2,
+																																							","
+																																						]
+																																					]
+																																					,[
+																																						20,
+																																						17,
+																																						cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+																																						true,
+																																						null
+																																						,[
+[
+																																							0,
+																																							2
+																																						]
+																																						]
+																																					]
+																																				]
+																																				,[
+																																					2,
+																																					":"
+																																				]
+																																			]
+																																			,[
+																																				20,
+																																				17,
+																																				cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+																																				false,
+																																				null
+																																				,[
+[
+																																					0,
+																																					2
+																																				]
+																																				]
+																																			]
+																																		]
+																																		,[
+																																			2,
+																																			","
+																																		]
+																																	]
+																																	,[
+																																		20,
+																																		17,
+																																		cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+																																		true,
+																																		null
+																																		,[
+[
+																																			0,
+																																			3
+																																		]
+																																		]
+																																	]
+																																]
+																																,[
+																																	2,
+																																	":"
+																																]
+																															]
+																															,[
+																																20,
+																																17,
+																																cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+																																false,
+																																null
+																																,[
+[
+																																	0,
+																																	3
+																																]
+																																]
+																															]
+																														]
+																														,[
+																															2,
+																															","
+																														]
+																													]
+																													,[
+																														20,
+																														17,
+																														cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+																														true,
+																														null
+																														,[
+[
+																															0,
+																															4
+																														]
+																														]
+																													]
+																												]
+																												,[
+																													2,
+																													":"
+																												]
+																											]
+																											,[
+																												20,
+																												17,
+																												cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+																												false,
+																												null
+																												,[
+[
+																													0,
+																													4
+																												]
+																												]
+																											]
+																										]
+																										,[
+																											2,
+																											","
+																										]
+																									]
+																									,[
+																										20,
+																										17,
+																										cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+																										true,
+																										null
+																										,[
+[
+																											0,
+																											5
+																										]
+																										]
+																									]
+																								]
+																								,[
+																									2,
+																									":"
+																								]
+																							]
+																							,[
+																								20,
+																								17,
+																								cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+																								false,
+																								null
+																								,[
+[
+																									0,
+																									5
+																								]
+																								]
+																							]
+																						]
+																						,[
+																							2,
+																							","
+																						]
+																					]
+																					,[
+																						20,
+																						17,
+																						cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+																						true,
+																						null
+																						,[
+[
+																							0,
+																							6
+																						]
+																						]
+																					]
+																				]
+																				,[
+																					2,
+																					":"
+																				]
+																			]
+																			,[
+																				20,
+																				17,
+																				cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+																				false,
+																				null
+																				,[
+[
+																					0,
+																					6
+																				]
+																				]
+																			]
+																		]
+																		,[
+																			2,
+																			","
+																		]
+																	]
+																	,[
+																		20,
+																		17,
+																		cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+																		true,
+																		null
+																		,[
+[
+																			0,
+																			7
+																		]
+																		]
+																	]
+																]
+																,[
+																	2,
+																	":"
+																]
+															]
+															,[
+																20,
+																17,
+																cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+																false,
+																null
+																,[
+[
+																	0,
+																	7
+																]
+																]
+															]
+														]
+														,[
+															2,
+															","
+														]
+													]
+													,[
+														20,
+														17,
+														cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+														true,
+														null
+														,[
+[
+															0,
+															8
+														]
+														]
+													]
+												]
+												,[
+													2,
+													":"
+												]
+											]
+											,[
+												20,
+												17,
+												cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+												false,
+												null
+												,[
+[
+													0,
+													8
+												]
+												]
+											]
+										]
+										,[
+											2,
+											","
+										]
+									]
+									,[
+										20,
+										17,
+										cr.plugins_.googleplay.prototype.exps.HiScoreNameAt,
+										true,
+										null
+										,[
+[
+											0,
+											9
+										]
+										]
+									]
+								]
+								,[
+									2,
+									":"
+								]
+							]
+							,[
+								20,
+								17,
+								cr.plugins_.googleplay.prototype.exps.HiScoreAt,
+								false,
+								null
+								,[
+[
+									0,
+									9
+								]
+								]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				9684635550262084,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.ForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					9286766334716188,
+					false
+					,[
+					[
+						4,
+						14
+					]
+					]
+				]
+				],
+				[
+				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					5397984542821435,
+					false
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.tokenat
+							,[
+[
+								19,
+								cr.system_object.prototype.exps.tokenat
+								,[
+[
+									20,
+									10,
+									cr.plugins_.WebStorage.prototype.exps.LocalValue,
+									true,
+									null
+									,[
+[
+										2,
+										"globalScoresJSON1"
+									]
+									]
+								]
+,[
+									21,
+									14,
+									false,
+									null
+									,0
+								]
+,[
+									2,
+									","
+								]
+								]
+							]
+,[
+								0,
+								0
+							]
+,[
+								2,
+								":"
+							]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				6553541938593024,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.ForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					2532379254047743,
+					false
+					,[
+					[
+						4,
+						13
+					]
+					]
+				]
+				],
+				[
+				[
+					13,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					250258061514108,
+					false
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.tokenat
+							,[
+[
+								19,
+								cr.system_object.prototype.exps.tokenat
+								,[
+[
+									20,
+									10,
+									cr.plugins_.WebStorage.prototype.exps.LocalValue,
+									true,
+									null
+									,[
+[
+										2,
+										"globalScoresJSON1"
+									]
+									]
+								]
+,[
+									21,
+									13,
+									false,
+									null
+									,0
+								]
+,[
+									2,
+									","
+								]
+								]
+							]
+,[
+								0,
+								1
+							]
+,[
+								2,
+								":"
+							]
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				9134039071563437,
+				[
+				[
+					14,
+					cr.plugins_.Text.prototype.cnds.CompareText,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9360416888916771,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							""
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				],
+				[
+				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					695306868761324,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"-"
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			4732268220540493,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2906862369446489,
+				false
+				,[
+				[
+					8,
+					3
+				]
+,				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				9468034646609819,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2621004350684637,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					7578053916205414,
+					false
+					,[
+					[
+						6,
+						"Credits"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				3865022824805655,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4332403633156633,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					6275166326035122,
+					false
+					,[
+					[
+						6,
+						"Menu"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				333924009056066,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6627337587947593,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							4
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					6646370183881696,
+					false
+					,[
+					[
+						6,
+						"Menu"
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			7075766080642061,
+			[
+			[
+				21,
+				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				null,
+				1,
+				false,
+				false,
+				false,
+				5893588006990832,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.GoToLayout,
+				null,
+				7091724147765587,
+				false
+				,[
+				[
+					6,
+					"Menu"
+				]
+				]
+			]
+			]
+		]
+		]
+	]
+,	[
+		"Credits",
+		[
+		[
+			2,
+			"Global",
+			false
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			7405871840983436,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				3873668195163182,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				2546610849936262,
+				false
+				,[
+				[
+					11,
+					"ColorsUID"
+				]
+,				[
+					7,
+					[
+						2,
+						""
+					]
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				3784523494305541,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.ForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					8153465788777385,
+					false
+					,[
+					[
+						4,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.TriggerOnce,
+					null,
+					0,
+					false,
+					false,
+					false,
+					5343662010198097,
+					false
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					3308013564427027,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1590318183627909,
+				[
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					4673802627047059,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Grow"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			5961729283758408,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3164074822001236,
+				false
+				,[
+				[
+					8,
+					3
+				]
+,				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				6948404131957478,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9999325522583204,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							4
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					9569142787989003,
+					false
+					,[
+					[
+						6,
+						"Menu"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2511963883050048,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					504217880029962,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					8300505289522264,
+					false
+					,[
+					[
+						6,
+						"Scores"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				390391634348435,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					5305944009707783,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					5987759177113836,
+					false
+					,[
+					[
+						6,
+						"Credits"
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			9453250025022842,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				5592367578856712,
+				false
+				,[
+				[
+					4,
+					0
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				4510656730047149,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.PickAll,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2305332819713271,
+					false
+					,[
+					[
+						4,
+						0
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					7775382997832528,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				3488890937735392,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4742063739300251,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							87
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					5839779190990247,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+,				[
+					4,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					7582240013248179,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					3399824525265275,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					8,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					2196237444446397,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					19,
+					cr.plugins_.Sprite.prototype.acts.SetVisible,
+					null,
+					901612360056747,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				4318796238263663,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6521973822704176,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							88
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					7359003523777436,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+,				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					1592615007535288,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"Follow"
+						]
+					]
+					]
+				]
+,				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					2114601397614662,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					4,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					9680536943549024,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					8,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					1696830629362734,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					19,
+					cr.plugins_.Sprite.prototype.acts.SetVisible,
+					null,
+					8621882042881163,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+				]
+				,[
+				[
+					0,
+					null,
+					false,
+					null,
+					938963918199614,
+					[
+					[
+						19,
+						cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+						null,
+						0,
+						false,
+						false,
+						false,
+						7932352691668114,
+						false
+						,[
+						[
+							8,
+							0
+						]
+,						[
+							0,
+							[
+								0,
+								3
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						19,
+						cr.plugins_.Sprite.prototype.acts.SetVisible,
+						null,
+						9727427838017111,
+						false
+						,[
+						[
+							3,
+							0
+						]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				4114501485524515,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6954585000502018,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							89
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					3590460563107647,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+,				[
+					8,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					6735100663582454,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					8055590626110846,
+					false
+					,[
+					[
+						7,
+						[
+							2,
+							"Wink"
+						]
+					]
+					]
+				]
+,				[
+					3,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					1876772212969341,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					4,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					3188274916279208,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+,				[
+					19,
+					cr.plugins_.Sprite.prototype.acts.SetVisible,
+					null,
+					6346090511922921,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+				]
+				,[
+				[
+					0,
+					null,
+					false,
+					null,
+					2198413563570819,
+					[
+					[
+						19,
+						cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+						null,
+						0,
+						false,
+						false,
+						false,
+						9991901584079384,
+						false
+						,[
+						[
+							8,
+							0
+						]
+,						[
+							0,
+							[
+								0,
+								3
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						19,
+						cr.plugins_.Sprite.prototype.acts.SetVisible,
+						null,
+						3464795223676559,
+						false
+						,[
+						[
+							3,
+							1
+						]
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			343977862348953,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				9604115965591611,
+				false
+				,[
+				[
+					4,
+					4
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.Compare,
+				null,
+				0,
+				false,
+				false,
+				false,
+				7955471927660923,
+				false
+				,[
+				[
+					7,
+					[
+						20,
+						0,
+						cr.plugins_.Sprite.prototype.exps.UID,
+						false,
+						null
+					]
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						0,
+						87
+					]
+				]
+				]
+			]
+,			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+				null,
+				0,
+				false,
+				false,
+				false,
+				8554717251626762,
+				false
+				,[
+				[
+					8,
+					0
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				18,
+				cr.plugins_.Browser.prototype.acts.GoToURL,
+				null,
+				5045216510527841,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"http://www.fourdesks.com"
+					]
+				]
+,				[
+					3,
+					1
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			1192826682802469,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				9628294814249197,
+				false
+				,[
+				[
+					4,
+					19
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.Compare,
+				null,
+				0,
+				false,
+				false,
+				false,
+				5581454160545177,
+				false
+				,[
+				[
+					7,
+					[
+						20,
+						0,
+						cr.plugins_.Sprite.prototype.exps.UID,
+						false,
+						null
+					]
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						0,
+						88
+					]
+				]
+				]
+			]
+,			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+				null,
+				0,
+				false,
+				false,
+				false,
+				7788144909041031,
+				false
+				,[
+				[
+					8,
+					0
+				]
+,				[
+					0,
+					[
+						0,
+						1
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				2358950024658984,
+				[
+				[
+					19,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4458566155934429,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					18,
+					cr.plugins_.Browser.prototype.acts.GoToURL,
+					null,
+					7862008442808178,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				8531419397216652,
+				[
+				[
+					19,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					649526210406567,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					18,
+					cr.plugins_.Browser.prototype.acts.GoToURL,
+					null,
+					7842433326174502,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"https://twitter.com/intent/tweet?text=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				8592564115560136,
+				[
+				[
+					19,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					4623580986833979,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					18,
+					cr.plugins_.Browser.prototype.acts.GoToURL,
+					null,
+					5750287710418075,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21&redirect_uri=http://facebook.com/"
+						]
+					]
+,					[
+						3,
+						0
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			377208458266863,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				6674739243470666,
+				false
+				,[
+				[
+					4,
+					19
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.Compare,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4433601008522974,
+				false
+				,[
+				[
+					7,
+					[
+						20,
+						0,
+						cr.plugins_.Sprite.prototype.exps.UID,
+						false,
+						null
+					]
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						0,
+						89
+					]
+				]
+				]
+			]
+,			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+				null,
+				0,
+				false,
+				false,
+				false,
+				747489165402613,
+				false
+				,[
+				[
+					8,
+					0
+				]
+,				[
+					0,
+					[
+						0,
+						2
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				7553962669571861,
+				[
+				[
+					19,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					738836407964657,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					18,
+					cr.plugins_.Browser.prototype.acts.GoToURL,
+					null,
+					7777750169463025,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"mailto:info@fourdesks.com?subject=I+Like+this+Game!"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			6600051563521867,
+			[
+			[
+				21,
+				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				null,
+				1,
+				false,
+				false,
+				false,
+				4135423874469332,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.GoToLayout,
+				null,
+				3434244570770195,
+				false
+				,[
+				[
+					6,
+					"Menu"
+				]
+				]
+			]
+			]
+		]
+		]
+	]
+,	[
+		"Settings",
+		[
+		[
+			2,
+			"Global",
+			false
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			4549558629170994,
+			[
+			[
+				21,
+				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				null,
+				1,
+				false,
+				false,
+				false,
+				1749815072274118,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.GoToLayout,
+				null,
+				2978005396074812,
+				false
+				,[
+				[
+					6,
+					"Menu"
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			6742211852094665,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				4455955493859721,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				5086723752382222,
+				false
+				,[
+				[
+					11,
+					"ColorsUID"
+				]
+,				[
+					7,
+					[
+						2,
+						""
+					]
+				]
+				]
+			]
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				8517839398179951,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.ForEach,
+					null,
+					0,
+					true,
+					false,
+					false,
+					7950601547911724,
+					false
+					,[
+					[
+						4,
+						0
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.TriggerOnce,
+					null,
+					0,
+					false,
+					false,
+					false,
+					8262821021469308,
+					false
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					3624313382366101,
+					false
+					,[
+					[
+						11,
+						"ColorsUID"
+					]
+,					[
+						7,
+						[
+							10,
+							[
+								10,
+								[
+									23,
+									"ColorsUID"
+								]
+								,[
+									2,
+									"|"
+								]
+							]
+							,[
+								20,
+								0,
+								cr.plugins_.Sprite.prototype.exps.UID,
+								false,
+								null
+							]
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				8784011701661294,
+				[
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					2784507903430569,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"Grow"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			1564004748006732,
+			[
+			[
+				0,
+				cr.plugins_.Sprite.prototype.cnds.CompareWidth,
+				null,
+				0,
+				false,
+				false,
+				false,
+				4745354218981029,
+				false
+				,[
+				[
+					8,
+					3
+				]
+,				[
+					0,
+					[
+						0,
+						5
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				8678022033488227,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9619438999294746,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							4
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					919704771403506,
+					false
+					,[
+					[
+						6,
+						"Menu"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				6318004544966159,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					2265539939662838,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					886443158565336,
+					false
+					,[
+					[
+						6,
+						"Scores"
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2251000621939402,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6167318858079593,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.GoToLayout,
+					null,
+					5396659475469018,
+					false
+					,[
+					[
+						6,
+						"Credits"
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			9249180628509668,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				4269447311329712,
+				false
+				,[
+				[
+					4,
+					0
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				null,
+				1703368381844741,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.PickAll,
+					null,
+					0,
+					false,
+					false,
+					false,
+					807919155489384,
+					false
+					,[
+					[
+						4,
+						0
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					8735845516064317,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+,				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					5039201549130978,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"sound"
+						]
+					]
+,					[
+						7,
+						[
+							0,
+							-50
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				8597618015740749,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3713296989979667,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							110
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					3290786331297011,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+,				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					202713582365598,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"sound"
+						]
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				2184946375234903,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9227773698688835,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							111
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					6610239076575734,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							1
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1319081091636209,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9899654971934067,
+					false
+					,[
+					[
+						7,
+						[
+							20,
+							0,
+							cr.plugins_.Sprite.prototype.exps.UID,
+							false,
+							null
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							112
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					12,
+					cr.plugins_.Audio.prototype.acts.Play,
+					null,
+					4646539431889664,
+					false
+					,[
+					[
+						2,
+						["pop",false]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
+						[
+							19,
+							cr.system_object.prototype.exps["int"]
+							,[
+[
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"sound"
+								]
+								]
+							]
+							]
+						]
+					]
+,					[
+						1,
+						[
+							2,
+							""
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				9053378795905481,
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.cnds.PickByUID,
+					null,
+					0,
+					false,
+					false,
+					true,
+					8635750438500793,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							112
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					0,
+					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
+					null,
+					1800441299577162,
+					false
+					,[
+					[
+						0,
+						[
+							0,
+							2
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
 		]
 	]
 	],
 	[
-		["pop.ogg", 4281]
+		["pop.m4a", 1916],
+		["pop.ogg", 5230]
 	],
 	"media/",
 	false,
@@ -27784,7 +40764,7 @@ false,false,4857271161516644,false
 	false,
 	0,
 	1,
-	48,
+	118,
 	false,
 	true,
 	1,
