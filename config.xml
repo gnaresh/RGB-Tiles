@@ -20,5 +20,5 @@
 	<!-- Optional splash screen image, e.g.: -->
 	<gap:splash src="splash.png"  gap:platform="android" width="720" height="1280" />
 	 <gap:platform name="android" />
-	 
+	 	 <gap:plugin name="org.apache.cordova.dialogs" version="0.2.6" />
 </widget>
