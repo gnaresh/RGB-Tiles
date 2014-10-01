@@ -21,5 +21,6 @@
 	<gap:splash src="splash.png"  gap:platform="android" width="720" height="1280" />
 	 <gap:platform name="android" />
 	<gap:platform name="winphone" />
+		<gap:platform name="windows8" />
 	 	 <gap:plugin name="org.apache.cordova.dialogs" version="0.2.6" />
 </widget>
