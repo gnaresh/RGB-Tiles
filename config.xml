@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.fourdesks.touchthebubble" version="1.0.1.5">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.fourdesks.touchthebubble" version="1.0.1.6">
 
 	<name>TouchTheBubble</name>
 	<description>The beautiful and addictive hit game Touch The Bubble, Select a colored Bubble and start Touching The Bubble.</description>
@@ -24,7 +24,6 @@
 	<gap:platform name="winphone" />
 	 	 <gap:plugin name="org.apache.cordova.dialogs" version="0.2.6" />
 		 <gap:plugin name="com.plugins.shortcut" version="0.1.1" />
-		 <gap:plugin name="org.apache.cordova.vibration" version="0.3.7" />
 		 <gap:plugin name="de.appplant.cordova.plugin.local-notification" version="0.7.4" />
 
 </widget>

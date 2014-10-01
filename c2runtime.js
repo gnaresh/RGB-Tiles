@@ -18212,176 +18212,6 @@ cr.plugins_.PhonegapShortcut = function(runtime)
 }());
 ;
 ;
-/*
-cr.plugins_.PhonegapVibration = function(runtime)
-{
-	this.runtime = runtime;
-	Type
-		onCreate
-	Instance
-		onCreate
-		draw
-		drawGL
-	cnds
-	acts
-	exps
-};
-*/
-cr.plugins_.PhonegapVibration = function(runtime)
-{
-	this.runtime = runtime;
-};
-(function ()
-{
-	var pluginProto = cr.plugins_.PhonegapVibration.prototype;
-	pluginProto.Type = function(plugin)
-	{
-		this.plugin = plugin;
-		this.runtime = plugin.runtime;
-	};
-	var typeProto = pluginProto.Type.prototype;
-	typeProto.onCreate = function()
-	{
-/*
-		var newScriptTag=document.createElement('script');
-		newScriptTag.setAttribute("type","text/javascript");
-		newScriptTag.setAttribute("src", "mylib.js");
-		document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-		var scripts=document.getElementsByTagName("script");
-		var scriptExist=false;
-		for(var i=0;i<scripts.length;i++){
-			if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
-				scriptExist=true;
-				break;
-			}
-		}
-		if(!scriptExist){
-			var newScriptTag=document.createElement("script");
-			newScriptTag.setAttribute("type","text/javascript");
-			newScriptTag.setAttribute("src", "cordova.js");
-			document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-		}
-*/
-		if(this.runtime.isBlackberry10 || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
-			var scripts=document.getElementsByTagName("script");
-			var scriptExist=false;
-			for(var i=0;i<scripts.length;i++){
-				if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
-					scriptExist=true;
-					break;
-				}
-			}
-			if(!scriptExist){
-				var newScriptTag=document.createElement("script");
-				newScriptTag.setAttribute("type","text/javascript");
-				newScriptTag.setAttribute("src", "cordova.js");
-				document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-			}
-		}
-	};
-	pluginProto.Instance = function(type)
-	{
-		this.type = type;
-		this.runtime = type.runtime;
-	};
-	var instanceProto = pluginProto.Instance.prototype;
-	instanceProto.onCreate = function()
-	{
-/*
-		var self=this;
-		window.addEventListener("resize", function () {//cranberrygame
-			self.runtime.trigger(cr.plugins_.PhonegapVibration.prototype.cnds.TriggerCondition, self);
-		});
-*/
-		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-	};
-	instanceProto.draw = function(ctx)
-	{
-	};
-	instanceProto.drawGL = function (glw)
-	{
-	};
-/*
-	instanceProto.at = function (x)
-	{
-		return this.arr[x];
-	};
-	instanceProto.set = function (x, val)
-	{
-		this.arr[x] = val;
-	};
-*/
-	function Cnds() {};
-/*
-	Cnds.prototype.MyCondition = function (myparam)
-	{
-		return myparam >= 0;
-	};
-	Cnds.prototype.TriggerCondition = function ()
-	{
-		return true;
-	};
-*/
-	pluginProto.cnds = new Cnds();
-	function Acts() {};
-/*
-	Acts.prototype.MyAction = function (myparam)
-	{
-		alert(myparam);
-	};
-	Acts.prototype.TriggerAction = function ()
-	{
-		var self=this;
-		self.runtime.trigger(cr.plugins_.PhonegapVibration.prototype.cnds.TriggerCondition, self);
-	};
-*/
-	Acts.prototype.Vibrate = function (pattern_,repeat)
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		if (repeat==1)
-			repeat=-1;
-		try {
-			var arr = pattern_.split(",");
-			var i, len;
-			for (i = 0, len = arr.length; i < len; i++)
-			{
-				arr[i] = parseInt(arr[i], 10);
-			}
-			arr.unshift(0);
-			navigator["notification"]["vibrateWithPattern"](arr, repeat);
-		}
-		catch (e) {}
-	};
-	Acts.prototype.CancelVibration = function ()
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		navigator["notification"]["cancelVibration"]();
-	};
-	pluginProto.acts = new Acts();
-	function Exps() {};
-/*
-	Exps.prototype.MyExpression = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
-	{
-		ret.set_int(1337);				// return our value
-	};
-	Exps.prototype.Text = function (ret, param) //cranberrygame
-	{
-		ret.set_string("Hello");		// for ef_return_string
-	};
-*/
-	pluginProto.exps = new Exps();
-}());
-;
-;
 cr.plugins_.Sprite = function(runtime)
 {
 	this.runtime = runtime;
@@ -22275,18 +22105,6 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.PhonegapVibration,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
 		cr.plugins_.PhonegapDialog,
 		true,
 		false,
@@ -22920,24 +22738,6 @@ cr.getProjectModel = function() { return [
 	]
 ,	[
 		"t26",
-		cr.plugins_.PhonegapVibration,
-		false,
-		[],
-		0,
-		0,
-		null,
-		null,
-		[
-		],
-		false,
-		false,
-		5223976208309831,
-		[],
-		null
-		,[]
-	]
-,	[
-		"t27",
 		cr.plugins_.PhonegapLocalNotification,
 		false,
 		[],
@@ -22955,7 +22755,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t28",
+		"t27",
 		cr.plugins_.Text,
 		true,
 		[],
@@ -22973,7 +22773,7 @@ cr.getProjectModel = function() { return [
 	]
 	],
 	[
-		[28,11,8,13,14,5,3,4]
+		[27,11,8,13,14,5,3,4]
 	],
 	[
 	[
@@ -35762,7 +35562,7 @@ false,false,2596508113697225,false
 			8884897769229845,
 			[
 			[
-				28,
+				27,
 				cr.plugins_.Text.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -35775,7 +35575,7 @@ false,false,2596508113697225,false
 			],
 			[
 			[
-				28,
+				27,
 				cr.plugins_.Text.prototype.acts.SetWebFont,
 				null,
 				1201840936439848,
@@ -36628,10 +36428,10 @@ false,false,2596508113697225,false
 			],
 			[
 			[
-				26,
-				cr.plugins_.PhonegapVibration.prototype.acts.Vibrate,
+				17,
+				cr.plugins_.Browser.prototype.acts.Vibrate,
 				null,
-				5155891204381979,
+				752939887280277,
 				false
 				,[
 				[
@@ -36641,34 +36441,7 @@ false,false,2596508113697225,false
 						"50"
 					]
 				]
-,				[
-					3,
-					1
 				]
-				]
-			]
-,			[
-				-1,
-				cr.system_object.prototype.acts.Wait,
-				null,
-				663573651011328,
-				false
-				,[
-				[
-					0,
-					[
-						1,
-						0.25
-					]
-				]
-				]
-			]
-,			[
-				26,
-				cr.plugins_.PhonegapVibration.prototype.acts.CancelVibration,
-				null,
-				7714748625259731,
-				false
 			]
 			]
 		]
@@ -36870,7 +36643,7 @@ false,false,2596508113697225,false
 				]
 			]
 ,			[
-				27,
+				26,
 				cr.plugins_.PhonegapLocalNotification.prototype.acts.SendLocalNotification,
 				null,
 				4264310845670884,
