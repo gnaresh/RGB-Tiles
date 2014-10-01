@@ -36638,7 +36638,7 @@ false,false,2596508113697225,false
 					1,
 					[
 						2,
-						"100"
+						"50"
 					]
 				]
 ,				[
@@ -36646,6 +36646,29 @@ false,false,2596508113697225,false
 					1
 				]
 				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.acts.Wait,
+				null,
+				663573651011328,
+				false
+				,[
+				[
+					0,
+					[
+						1,
+						0.25
+					]
+				]
+				]
+			]
+,			[
+				26,
+				cr.plugins_.PhonegapVibration.prototype.acts.CancelVibration,
+				null,
+				7714748625259731,
+				false
 			]
 			]
 		]
@@ -45008,7 +45031,7 @@ false,false,274943258950527,false
 	true,
 	true,
 	true,
-	"1.0.1.3",
+	"1.0.1.5",
 	true,
 	false,
 	0,
