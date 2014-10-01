@@ -35504,6 +35504,37 @@ false,false,2596508113697225,false
 				]
 				]
 			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2884013217710438,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"sound"
+					]
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
 			],
 			[
 			[
@@ -37095,29 +37126,6 @@ false,false,5068828181573646,false
 				]
 			]
 ,			[
-				10,
-				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
-				null,
-				5115819035478323,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"sound"
-					]
-				]
-,				[
-					7,
-					[
-						0,
-						0
-					]
-				]
-				]
-			]
-,			[
 				22,
 				cr.plugins_.AJAX.prototype.acts.Post,
 				null,
@@ -37350,6 +37358,60 @@ false,false,5068828181573646,false
 						[
 							2,
 							"0,0,0,0,0,0,0,0,0,0,"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				4355336453483857,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					true,
+					false,
+					1067637567031848,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"sound"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					5115819035478323,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"sound"
+						]
+					]
+,					[
+						7,
+						[
+							0,
+							0
 						]
 					]
 					]
@@ -43013,6 +43075,37 @@ false,false,274943258950527,false
 				]
 				]
 			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+				null,
+				0,
+				false,
+				false,
+				false,
+				537700078262467,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"sound"
+					]
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
 			],
 			[
 			[
@@ -44804,7 +44897,7 @@ false,false,274943258950527,false
 	true,
 	true,
 	true,
-	"1.0.1.5",
+	"1.0.1.8",
 	true,
 	false,
 	0,
