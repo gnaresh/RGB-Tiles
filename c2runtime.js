@@ -31611,14 +31611,14 @@ false,false,4857271161516644,false
 			[
 			[
 				-1,
-				cr.system_object.prototype.acts.NextPrevLayout,
+				cr.system_object.prototype.acts.GoToLayout,
 				null,
 				4812573453395908,
 				false
 				,[
 				[
-					3,
-					1
+					6,
+					"Menu"
 				]
 				]
 			]
