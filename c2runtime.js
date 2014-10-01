@@ -21268,731 +21268,6 @@ cr.plugins_.WebStorage = function(runtime)
 }());
 ;
 ;
-cr.plugins_.googleplay = function(runtime)
-{
-	this.runtime = runtime;
-};
-(function ()
-{
-	var pluginProto = cr.plugins_.googleplay.prototype;
-	pluginProto.Type = function(plugin)
-	{
-		this.plugin = plugin;
-		this.runtime = plugin.runtime;
-	};
-	var typeProto = pluginProto.Type.prototype;
-	typeProto.onCreate = function()
-	{
-	};
-	var applicationId = "";
-	var clientId = "";
-	var isLoaded = false;
-	var fireLoadedFirstTick = false;
-	var isSignedIn = false;
-	var lastError = "";
-	var theInst = null;
-	var my_playerid = "";
-	var my_displayname = "";
-	var my_avatarurl = "";
-	var my_givenname = "";
-	var my_familyname = "";
-	var hiscores_total = 0;
-	var hiscores_mybest = 0;
-	var hiscores_myformattedbest = "";
-	var hiscores_mybesttag = "";
-	var hiscores_myrank = 0;
-	var hiscores_myformattedrank = "";
-	var hiscores_page = null;
-	var achievements_page = null;
-	var achievements_by_id = {};
-	var achievement_trigger_id = "";
-	pluginProto.Instance = function(type)
-	{
-		this.type = type;
-		this.runtime = type.runtime;
-	};
-	var instanceProto = pluginProto.Instance.prototype;
-	function addMetaTag(name, content)
-	{
-		var meta = document.createElement("meta");
-		meta["name"] = name;
-		meta["content"] = content;
-		document.head.appendChild(meta);
-	};
-	function addScriptTag(src)
-	{
-		var s = document.createElement("script");
-		s["type"] = "text/javascript";
-		s["async"] = true;
-		s["src"] = src;
-		document.head.appendChild(s);
-	};
-	window["googlePlayLoadCallback"] = function ()
-	{
-		isLoaded = true;
-		if (theInst.runtime.running_layout)
-		{
-			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnLoaded, theInst);
-		}
-		else
-		{
-			fireLoadedFirstTick = true;
-		}
-	};
-	window["googlePlaySigninCallback"] = function (auth)
-	{
-		if (auth["status"] && auth["status"]["signed_in"])
-		{
-			isSignedIn = true;
-			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnSignedIn, theInst);
-		}
-		else if (auth["error"] === "user_signed_out")
-		{
-			isSignedIn = false;
-			lastError = "user_signed_out";
-			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnSignedOut, theInst);
-		}
-		else if (auth["error"] === "immediate_failed")
-		{
-			isSignedIn = false;
-			lastError = "immediate_failed";
-			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAutoSignInFailed, theInst);
-		}
-		else
-		{
-			isSignedIn = false;
-			lastError = auth["error"].toString();
-			theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-		}
-	};
-	instanceProto.onCreate = function()
-	{
-		applicationId = this.properties[0];
-		clientId = this.properties[1];
-		if (this.runtime.isDomFree)
-			return;		// cannot add meta tags in dom-free wrappers
-		theInst = this;
-		addMetaTag("google-signin-clientid", clientId);
-		addMetaTag("google-signin-cookiepolicy", "single_host_origin");
-		addMetaTag("google-signin-callback", "googlePlaySigninCallback");
-		addMetaTag("google-signin-scope", "https://www.googleapis.com/auth/games");
-		addScriptTag("https://apis.google.com/js/client.js?onload=googlePlayLoadCallback");
-		this.runtime.tickMe(this);
-	};
-	instanceProto.onDestroy = function ()
-	{
-	};
-	instanceProto.saveToJSON = function ()
-	{
-		return {
-		};
-	};
-	instanceProto.loadFromJSON = function (o)
-	{
-	};
-	instanceProto.onLayoutChange = function ()
-	{
-		if (isLoaded)
-			this.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnLoaded, this);
-		if (isSignedIn)
-			this.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnSignedIn, this);
-	};
-	instanceProto.tick = function ()
-	{
-		if (fireLoadedFirstTick)
-		{
-			fireLoadedFirstTick = false;
-			this.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnLoaded, this);
-		}
-	};
-	function Cnds() {};
-	Cnds.prototype.OnLoaded = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.IsLoaded = function ()
-	{
-		return isLoaded;
-	};
-	Cnds.prototype.OnSignedIn = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnSignedOut = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.IsSignedIn = function ()
-	{
-		return isSignedIn;
-	};
-	Cnds.prototype.OnError = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnPlayerDetails = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnAutoSignInFailed = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnScoreSubmitSuccess = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnScoreSubmitFail = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnHiScoreRequestSuccess = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnHiScoreRequestFail = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnAchievementsRequestSuccess = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnAchievementsRequestFail = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.CompareAchievementState = function (i, s)
-	{
-		var a = getAchievementAt(i);
-		if (!a)
-			return false;
-		var str = a["achievementState"];
-		if (s === 0)
-			return str === "HIDDEN";
-		if (s === 1)
-			return str === "REVEALED";
-		if (s === 2)
-			return str === "UNLOCKED";
-		return false;
-	};
-	Cnds.prototype.OnAchievementsMetadataSuccess = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnAchievementsMetadataFail = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnAchievementRevealed = function (id)
-	{
-		return achievement_trigger_id === id;
-	};
-	Cnds.prototype.OnAchievementUnlocked = function (id)
-	{
-		return achievement_trigger_id === id;
-	};
-	pluginProto.cnds = new Cnds();
-	function Acts() {};
-	function getErrorString(err)
-	{
-		if (typeof err === "string")
-			return err;
-		else if (typeof err["message"] === "string")
-			return err["message"]
-		else
-			return "unknown";
-	};
-	Acts.prototype.RequestPlayerDetails = function ()
-	{
-		if (!isSignedIn)
-			return;
-		gapi["client"]["request"]({
-			"path": "/games/v1/players/me",
-			"callback": function (response)
-			{
-				if (!response)
-				{
-					lastError = "no_response";
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				if (response["error"])
-				{
-					lastError = getErrorString(response["error"]);
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				my_playerid = response["playerId"] || "";
-				my_displayname = response["displayName"] || "";
-				my_avatarurl = response["avatarImageUrl"] || "";
-				if (response["name"])
-				{
-					my_givenname = response["name"]["givenName"] || "";
-					my_familyname = response["name"]["familyName"] || "";
-				}
-				else
-				{
-					my_givenname = "";
-					my_familyname = "";
-				}
-				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnPlayerDetails, theInst);
-			}
-		});
-	};
-	Acts.prototype.SignIn = function ()
-	{
-		if (!isLoaded || isSignedIn)
-			return;
-		gapi["auth"]["signIn"]({
-			"callback": window["googlePlaySigninCallback"]
-		});
-	};
-	Acts.prototype.SignOut = function ()
-	{
-		if (!isLoaded || !isSignedIn)
-			return;
-		gapi["auth"]["signOut"]();
-	};
-	Acts.prototype.SubmitScore = function (leaderboardId, score, tag)
-	{
-		if (!isLoaded || !isSignedIn)
-			return;
-		var params = {
-			"leaderboardId": leaderboardId,
-			"score": score
-		};
-		if (tag)
-			params["scoreTag"] = tag;
-		gapi["client"]["request"]({
-			"path": "/games/v1/leaderboards/" + leaderboardId + "/scores",
-			"params": params,
-			"method": "post",
-			"callback": function (response)
-			{
-				if (!response)
-				{
-					lastError = "no_response";
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnScoreSubmitFail, theInst);
-					return;
-				}
-				if (response["error"])
-				{
-					lastError = getErrorString(response["error"]);
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnScoreSubmitFail, theInst);
-					return;
-				}
-				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnScoreSubmitSuccess, theInst);
-			}
-		});
-	};
-	Acts.prototype.RequestHiScores = function (leaderboardId, collection, timespan, maxresults, type)
-	{
-		if (!isLoaded || !isSignedIn)
-			return;
-		var collectionstr = (collection === 0 ? "PUBLIC" : "SOCIAL");
-		var timespanstr = "ALL_TIME";
-		if (timespan === 1)
-			timespanstr = "WEEKLY";
-		else if (timespan === 2)
-			timespanstr = "DAILY";
-		var params = {
-			"leaderboardId": leaderboardId,
-			"collection": collectionstr,
-			"timeSpan": timespanstr,
-			"maxResults": maxresults
-		};
-		var typestr = "scores";
-		if (type === 1)
-			typestr = "window";
-		gapi["client"]["request"]({
-			"path": "/games/v1/leaderboards/" + leaderboardId + "/" + typestr + "/" + collectionstr,
-			"params": params,
-			"callback": function (response)
-			{
-				if (!response)
-				{
-					lastError = "no_response";
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnHiScoreRequestFail, theInst);
-					return;
-				}
-				if (response["error"])
-				{
-					lastError = getErrorString(response["error"]);
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnHiScoreRequestFail, theInst);
-					return;
-				}
-				hiscores_total = parseInt(response["numScores"], 10) || 0;
-				if (response["playerScore"])
-				{
-					hiscores_mybest = parseInt(response["playerScore"]["scoreValue"], 10) || 0;
-					hiscores_myformattedbest = response["playerScore"]["formattedScore"] || "";
-					hiscores_mybesttag = response["playerScore"]["scoreTag"] || "";
-					hiscores_myrank = parseInt(response["playerScore"]["scoreRank"], 10) || 0;
-					hiscores_myformattedrank = response["playerScore"]["formattedScoreRank"] || "";
-				}
-				else
-				{
-					hiscores_mybest = 0;
-					hiscores_myformattedbest = "";
-					hiscores_mybesttag = "";
-					hiscores_myrank = 0;
-					hiscores_myformattedrank = "";
-				}
-				hiscores_page = response["items"];
-				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnHiScoreRequestSuccess, theInst);
-			}
-		});
-	};
-	Acts.prototype.RequestAchievements = function (which)
-	{
-		if (!isLoaded || !isSignedIn)
-			return;
-		var whichstr = "ALL";
-		if (which === 1)
-			whichstr = "HIDDEN";
-		else if (which === 2)
-			whichstr = "REVEALED";
-		else if (which === 3)
-			whichstr = "UNLOCKED";
-		gapi["client"]["request"]({
-			"path": "/games/v1/players/me/achievements",
-			"callback": function (response)
-			{
-				if (!response)
-				{
-					lastError = "no_response";
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsRequestFail, theInst);
-					return;
-				}
-				if (response["error"])
-				{
-					lastError = getErrorString(response["error"]);
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsRequestFail, theInst);
-					return;
-				}
-				achievements_page = response["items"];
-				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsRequestSuccess, theInst);
-			}
-		});
-	};
-	Acts.prototype.RequestAchievementMetadata = function ()
-	{
-		if (!isLoaded || !isSignedIn)
-			return;
-		gapi["client"]["request"]({
-			"path": "/games/v1/achievements",
-			"callback": function (response)
-			{
-				if (!response)
-				{
-					lastError = "no_response";
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsMetadataFail, theInst);
-					return;
-				}
-				if (response["error"])
-				{
-					lastError = getErrorString(response["error"]);
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsMetadataFail, theInst);
-					return;
-				}
-				achievements_by_id = {};
-				var i, len, a, items = response["items"];
-				for (i = 0, len = items.length; i < len; ++i)
-				{
-					a = items[i];
-					achievements_by_id[a["id"]] = {
-						name: a["name"],
-						description: a["description"],
-						type: a["achievementType"],
-						totalSteps: a["totalSteps"],
-						revealedUrl: a["revealedIconUrl"],
-						unlockedUrl: a["unlockedIconUrl"]
-					};
-				}
-				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementsMetadataSuccess, theInst);
-			}
-		});
-	};
-	Acts.prototype.RevealAchievement = function (id)
-	{
-		if (!isLoaded || !isSignedIn)
-			return;
-		gapi["client"]["request"]({
-			"path": "/games/v1/achievements/" + id + "/reveal",
-			"method": "post",
-			"callback": function (response)
-			{
-				if (!response)
-				{
-					lastError = "no_response";
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				if (response["error"])
-				{
-					lastError = getErrorString(response["error"]);
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				achievement_trigger_id = id;
-				theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementRevealed, theInst);
-			}
-		});
-	};
-	Acts.prototype.UnlockAchievement = function (id)
-	{
-		if (!isLoaded || !isSignedIn)
-			return;
-		gapi["client"]["request"]({
-			"path": "/games/v1/achievements/" + id + "/unlock",
-			"method": "post",
-			"callback": function (response)
-			{
-				if (!response)
-				{
-					lastError = "no_response";
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				if (response["error"])
-				{
-					lastError = getErrorString(response["error"]);
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				if (response["newlyUnlocked"])
-				{
-					achievement_trigger_id = id;
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked, theInst);
-				}
-			}
-		});
-	};
-	Acts.prototype.IncrementAchievement = function (id, steps)
-	{
-		if (!isLoaded || !isSignedIn)
-			return;
-		gapi["client"]["request"]({
-			"path": "/games/v1/achievements/" + id + "/increment",
-			"method": "post",
-			"params": {
-				"stepsToIncrement": steps
-			},
-			"callback": function (response)
-			{
-				if (!response)
-				{
-					lastError = "no_response";
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				if (response["error"])
-				{
-					lastError = getErrorString(response["error"]);
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				if (response["newlyUnlocked"])
-				{
-					achievement_trigger_id = id;
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked, theInst);
-				}
-			}
-		});
-	};
-	Acts.prototype.SetStepsAchievement = function (id, steps)
-	{
-		if (!isLoaded || !isSignedIn)
-			return;
-		gapi["client"]["request"]({
-			"path": "/games/v1/achievements/" + id + "/setStepsAtLeast",
-			"method": "post",
-			"params": {
-				"steps": steps
-			},
-			"callback": function (response)
-			{
-				if (!response)
-				{
-					lastError = "no_response";
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				if (response["error"])
-				{
-					lastError = getErrorString(response["error"]);
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnError, theInst);
-					return;
-				}
-				if (response["newlyUnlocked"])
-				{
-					achievement_trigger_id = id;
-					theInst.runtime.trigger(cr.plugins_.googleplay.prototype.cnds.OnAchievementUnlocked, theInst);
-				}
-			}
-		});
-	};
-	pluginProto.acts = new Acts();
-	function Exps() {};
-	Exps.prototype.ErrorMessage = function (ret)
-	{
-		ret.set_string(lastError);
-	};
-	Exps.prototype.MyID = function (ret)
-	{
-		ret.set_string(my_playerid);
-	};
-	Exps.prototype.MyDisplayName = function (ret)
-	{
-		ret.set_string(my_displayname);
-	};
-	Exps.prototype.MyAvatarUrl = function (ret)
-	{
-		ret.set_string(my_avatarurl);
-	};
-	Exps.prototype.MyGivenName = function (ret)
-	{
-		ret.set_string(my_givenname);
-	};
-	Exps.prototype.MyFamilyName = function (ret)
-	{
-		ret.set_string(my_familyname);
-	};
-	Exps.prototype.HiScoreTotalCount = function (ret)
-	{
-		ret.set_int(hiscores_total);
-	};
-	Exps.prototype.HiScoreMyBest = function (ret)
-	{
-		ret.set_int(hiscores_mybest);
-	};
-	Exps.prototype.HiScoreMyBestTag = function (ret)
-	{
-		ret.set_string(hiscores_mybesttag);
-	};
-	Exps.prototype.HiScoreMyFormattedBest = function (ret)
-	{
-		ret.set_string(hiscores_myformattedbest);
-	};
-	Exps.prototype.HiScoreMyBestRank = function (ret)
-	{
-		ret.set_int(hiscores_myrank);
-	};
-	Exps.prototype.HiScoreMyBestFormattedRank = function (ret)
-	{
-		ret.set_string(hiscores_myformattedrank);
-	};
-	Exps.prototype.HiScoreCount = function (ret)
-	{
-		ret.set_int(hiscores_page ? (hiscores_page.length || 0) : 0);
-	};
-	function getScoreAt(i)
-	{
-		if (!hiscores_page)
-			return null;
-		i = Math.floor(i);
-		if (i < 0 || i >= hiscores_page.length)
-			return null;
-		return hiscores_page[i];
-	};
-	Exps.prototype.HiScoreNameAt = function (ret, i)
-	{
-		var s = getScoreAt(i);
-		ret.set_string((s && s["player"]) ? (s["player"]["displayName"] || "") : "");
-	};
-	Exps.prototype.HiScoreRankAt = function (ret, i)
-	{
-		var s = getScoreAt(i);
-		ret.set_int(s ? (parseInt(s["scoreRank"], 10) || 0) : 0);
-	};
-	Exps.prototype.HiScoreAt = function (ret, i)
-	{
-		var s = getScoreAt(i);
-		ret.set_int(s ? (parseInt(s["scoreValue"], 10) || 0) : 0);
-	};
-	Exps.prototype.HiScoreTagAt = function (ret, i)
-	{
-		var s = getScoreAt(i);
-		ret.set_string((s && s["scoreTag"]) ? (s["scoreTag"] || "") : "");
-	};
-	Exps.prototype.HiScoreFormattedAt = function (ret, i)
-	{
-		var s = getScoreAt(i);
-		ret.set_string((s && s["formattedScore"]) ? (s["formattedScore"] || "") : "");
-	};
-	Exps.prototype.HiScoreFormattedRankAt = function (ret, i)
-	{
-		var s = getScoreAt(i);
-		ret.set_string((s && s["formattedScoreRank"]) ? (s["formattedScoreRank"] || "") : "");
-	};
-	function getAchievementAt(i)
-	{
-		if (!achievements_page)
-			return null;
-		i = Math.floor(i);
-		if (i < 0 || i >= achievements_page.length)
-			return null;
-		return achievements_page[i];
-	};
-	function getAchievementMetadataAt(i)
-	{
-		var a = getAchievementAt(i);
-		if (!a)
-			return null;
-		var id = a["id"];
-		if (!achievements_by_id.hasOwnProperty(id))
-			return null;
-		return achievements_by_id[id];
-	};
-	Exps.prototype.AchievementsCount = function (ret)
-	{
-		ret.set_int(achievements_page ? (achievements_page.length || 0) : 0);
-	};
-	Exps.prototype.AchievementIDAt = function (ret, i)
-	{
-		var a = getAchievementAt(i);
-		ret.set_string(a ? (a["id"] || "") : "");
-	};
-	Exps.prototype.AchievementStepsAt = function (ret, i)
-	{
-		var a = getAchievementAt(i);
-		ret.set_int(a ? (a["currentSteps"] || 0) : 0);
-	};
-	Exps.prototype.AchievementNameAt = function (ret, i)
-	{
-		var a = getAchievementMetadataAt(i);
-		ret.set_string(a ? (a.name || "") : "");
-	};
-	Exps.prototype.AchievementDescriptionAt = function (ret, i)
-	{
-		var a = getAchievementMetadataAt(i);
-		ret.set_string(a ? (a.description || "") : "");
-	};
-	Exps.prototype.AchievementTypeAt = function (ret, i)
-	{
-		var a = getAchievementMetadataAt(i);
-		ret.set_string(a ? (a.type || "").toLowerCase() : "");
-	};
-	Exps.prototype.AchievementTotalStepsAt = function (ret, i)
-	{
-		var a = getAchievementMetadataAt(i);
-		ret.set_int(a ? (a.totalSteps || 0) : 0);
-	};
-	Exps.prototype.AchievementRevealedIconURLAt = function (ret, i)
-	{
-		var a = getAchievementMetadataAt(i);
-		ret.set_string(a ? (a.revealedUrl || "") : "");
-	};
-	Exps.prototype.AchievementUnlockedIconURLAt = function (ret, i)
-	{
-		var a = getAchievementMetadataAt(i);
-		ret.set_string(a ? (a.unlockedUrl || "") : "");
-	};
-	pluginProto.exps = new Exps();
-}());
-;
-;
 cr.behaviors.Flash = function(runtime)
 {
 	this.runtime = runtime;
@@ -22311,18 +21586,6 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.googleplay,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
 		cr.plugins_.PhonegapDialog,
 		true,
 		false,
@@ -22347,11 +21610,11 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.TextBox,
+		cr.plugins_.Touch,
+		true,
 		false,
-		true,
-		true,
-		true,
+		false,
+		false,
 		false,
 		false,
 		false,
@@ -22371,6 +21634,18 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
+		cr.plugins_.TextBox,
+		false,
+		true,
+		true,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
 		cr.plugins_.Sprite,
 		false,
 		true,
@@ -22380,18 +21655,6 @@ cr.getProjectModel = function() { return [
 		true,
 		true,
 		true,
-		false
-	]
-,	[
-		cr.plugins_.Touch,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
 		false
 	]
 ,	[
@@ -22478,7 +21741,7 @@ cr.getProjectModel = function() { return [
 			false,
 			1620413693031994,
 			[
-				["images/frame-sheet0.png", 812, 0, 0, 250, 250, 1, 0.5, 0.5,[],[],0]
+				["images/frame-sheet0.png", 155, 0, 0, 250, 250, 1, 0.5, 0.5,[],[],1]
 			]
 			]
 		],
@@ -22646,10 +21909,11 @@ cr.getProjectModel = function() { return [
 			false,
 			7628839331266489,
 			[
-				["images/icons-sheet0.png", 19902, 1, 1, 128, 128, 1, 0.5, 0.5,[],[],0],
-				["images/icons-sheet0.png", 19902, 131, 1, 128, 128, 1, 0.5, 0.5,[],[],0],
-				["images/icons-sheet0.png", 19902, 261, 1, 128, 128, 1, 0.5, 0.5,[],[],0],
-				["images/icons-sheet0.png", 19902, 1, 131, 128, 128, 1, 0.5, 0.5,[],[],0]
+				["images/icons-sheet0.png", 24676, 1, 1, 128, 128, 1, 0.5, 0.5,[],[],0],
+				["images/icons-sheet0.png", 24676, 131, 1, 128, 128, 1, 0.5, 0.5,[],[],0],
+				["images/icons-sheet0.png", 24676, 261, 1, 128, 128, 1, 0.5, 0.5,[],[],0],
+				["images/icons-sheet0.png", 24676, 1, 131, 128, 128, 1, 0.5, 0.5,[],[],0],
+				["images/icons-sheet0.png", 24676, 131, 131, 128, 128, 1, 0.5, 0.5,[],[],0]
 			]
 			]
 		],
@@ -22789,24 +22053,6 @@ cr.getProjectModel = function() { return [
 	]
 ,	[
 		"t17",
-		cr.plugins_.googleplay,
-		false,
-		[],
-		0,
-		0,
-		null,
-		null,
-		[
-		],
-		false,
-		false,
-		3863914982186682,
-		[],
-		null
-		,["786473779429","786473779429-fh78nh2k8r8glbl35jm0u4hrlmhho1nr.apps.googleusercontent.com"]
-	]
-,	[
-		"t18",
 		cr.plugins_.Browser,
 		false,
 		[],
@@ -22824,7 +22070,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t19",
+		"t18",
 		cr.plugins_.Sprite,
 		false,
 		[9973193076486025],
@@ -22857,7 +22103,7 @@ cr.getProjectModel = function() { return [
 		null
 	]
 ,	[
-		"t20",
+		"t19",
 		cr.plugins_.PhonegapDialog,
 		false,
 		[],
@@ -22875,7 +22121,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t21",
+		"t20",
 		cr.plugins_.Phonegap,
 		false,
 		[],
@@ -22893,7 +22139,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t22",
+		"t21",
 		cr.plugins_.TextBox,
 		false,
 		[],
@@ -22910,7 +22156,7 @@ cr.getProjectModel = function() { return [
 		null
 	]
 ,	[
-		"t23",
+		"t22",
 		cr.plugins_.AJAX,
 		false,
 		[],
@@ -22928,7 +22174,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t24",
+		"t23",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -22945,7 +22191,7 @@ cr.getProjectModel = function() { return [
 		null
 	]
 ,	[
-		"t25",
+		"t24",
 		cr.plugins_.Text,
 		true,
 		[],
@@ -22963,7 +22209,7 @@ cr.getProjectModel = function() { return [
 	]
 	],
 	[
-		[25,11,8,13,14,5,3,4]
+		[24,11,8,13,14,5,3,4]
 	],
 	[
 	[
@@ -22979,7 +22225,7 @@ cr.getProjectModel = function() { return [
 			0,
 			8722530541249526,
 			true,
-			[245, 245, 245],
+			[255, 255, 255],
 			false,
 			1,
 			1,
@@ -23405,7 +22651,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				null,
-				24,
+				23,
 				129,
 				[
 				],
@@ -23881,7 +23127,7 @@ cr.getProjectModel = function() { return [
 				[
 					0,
 					"Default",
-					2,
+					4,
 					1
 				]
 			]
@@ -23955,7 +23201,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[201, 960, 0, 150, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				106,
 				[
 					[0]
@@ -23971,7 +23217,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[361, 960, 0, 150, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				107,
 				[
 					[0]
@@ -23987,7 +23233,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[521, 960, 0, 150, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				108,
 				[
 					[0]
@@ -25208,7 +24454,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[201, 542, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				99,
 				[
 					[0]
@@ -25224,7 +24470,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[521, 542, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				100,
 				[
 					[0]
@@ -25240,7 +24486,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[361, 802, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				101,
 				[
 					[0]
@@ -25256,7 +24502,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[360, 610, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				102,
 				[
 					[1]
@@ -25293,7 +24539,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[201, 930, 0, 125, 125, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				124,
 				[
 					[1]
@@ -25309,7 +24555,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[521, 930, 0, 125, 125, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				125,
 				[
 					[1]
@@ -25325,7 +24571,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[361, 930, 0, 125, 125, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				19,
+				18,
 				126,
 				[
 					[1]
@@ -25415,7 +24661,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[60, 550, 0, 600, 100, 0, 0, 1, 0, 0, 0, 0, []],
-				22,
+				21,
 				121,
 				[
 				],
@@ -25463,6 +24709,13 @@ cr.getProjectModel = function() { return [
 		"Game",
 		[
 		[
+			1,
+			"gameend",
+			0,
+			0,
+false,false,6996949960291408,false
+		]
+,		[
 			2,
 			"Global",
 			false
@@ -25574,6 +24827,34 @@ false,false,130635249387532,false
 					[
 						23,
 						"colorvalue"
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.CompareVar,
+				null,
+				0,
+				false,
+				false,
+				false,
+				799253850417622,
+				false
+				,[
+				[
+					11,
+					"gameend"
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						0,
+						0
 					]
 				]
 				]
@@ -28238,6 +27519,26 @@ false,false,130635249387532,false
 			],
 			[
 			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				6026468708251576,
+				false
+				,[
+				[
+					11,
+					"gameend"
+				]
+,				[
+					7,
+					[
+						0,
+						1
+					]
+				]
+				]
+			]
+,			[
 				0,
 				cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
 				null,
@@ -30417,7 +29718,7 @@ false,false,4857271161516644,false
 			4406916183646371,
 			[
 			[
-				21,
+				20,
 				cr.plugins_.Phonegap.prototype.cnds.OnBack,
 				null,
 				1,
@@ -30739,7 +30040,7 @@ false,false,2596508113697225,false
 					]
 				]
 ,				[
-					23,
+					22,
 					cr.plugins_.AJAX.prototype.acts.Post,
 					null,
 					6896816453707689,
@@ -30930,7 +30231,7 @@ false,false,2596508113697225,false
 			6689859802506159,
 			[
 			[
-				23,
+				22,
 				cr.plugins_.AJAX.prototype.cnds.OnComplete,
 				null,
 				1,
@@ -30952,7 +30253,7 @@ false,false,2596508113697225,false
 			],
 			[
 			[
-				23,
+				22,
 				cr.plugins_.AJAX.prototype.acts.Request,
 				null,
 				7040649270181912,
@@ -30984,7 +30285,7 @@ false,false,2596508113697225,false
 			4215413399686941,
 			[
 			[
-				23,
+				22,
 				cr.plugins_.AJAX.prototype.cnds.OnComplete,
 				null,
 				1,
@@ -31033,7 +30334,7 @@ false,false,2596508113697225,false
 							,[
 [
 								20,
-								23,
+								22,
 								cr.plugins_.AJAX.prototype.exps.LastData,
 								true,
 								null
@@ -31074,7 +30375,7 @@ false,false,2596508113697225,false
 						7,
 						[
 							20,
-							23,
+							22,
 							cr.plugins_.AJAX.prototype.exps.LastData,
 							true,
 							null
@@ -31232,54 +30533,6 @@ false,false,2596508113697225,false
 						1
 					]
 					]
-				]
-				]
-			]
-			]
-		]
-,		[
-			0,
-			null,
-			false,
-			null,
-			9365157322566966,
-			[
-			[
-				1,
-				cr.plugins_.Touch.prototype.cnds.OnTapGestureObject,
-				null,
-				1,
-				false,
-				false,
-				false,
-				2044688057880938,
-				false
-				,[
-				[
-					4,
-					0
-				]
-				]
-			]
-			],
-			[
-			[
-				-1,
-				cr.system_object.prototype.acts.SetGroupActive,
-				null,
-				3893201677649143,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"ShrinkCustom"
-					]
-				]
-,				[
-					3,
-					1
 				]
 				]
 			]
@@ -32653,73 +31906,6 @@ false,false,2596508113697225,false
 			null,
 			false,
 			null,
-			7403764670885066,
-			[
-			[
-				-1,
-				cr.system_object.prototype.cnds.Compare,
-				null,
-				0,
-				false,
-				false,
-				false,
-				2211532352420129,
-				false
-				,[
-				[
-					7,
-					[
-						20,
-						17,
-						cr.plugins_.googleplay.prototype.exps.HiScoreMyBest,
-						false,
-						null
-					]
-				]
-,				[
-					8,
-					2
-				]
-,				[
-					7,
-					[
-						20,
-						10,
-						cr.plugins_.WebStorage.prototype.exps.LocalValue,
-						true,
-						null
-						,[
-[
-							2,
-							"highscore"
-						]
-						]
-					]
-				]
-				]
-			]
-			],
-			[
-			[
-				14,
-				cr.plugins_.Text.prototype.acts.SetVisible,
-				null,
-				5771543161504789,
-				false
-				,[
-				[
-					3,
-					1
-				]
-				]
-			]
-			]
-		]
-,		[
-			0,
-			null,
-			false,
-			null,
 			458983063714855,
 			[
 			[
@@ -32748,13 +31934,6 @@ false,false,2596508113697225,false
 			]
 			],
 			[
-			[
-				-1,
-				cr.system_object.prototype.acts.ResetGlobals,
-				null,
-				4780865251720199,
-				false
-			]
 			]
 			,[
 			[
@@ -32806,6 +31985,13 @@ false,false,2596508113697225,false
 						"Menu"
 					]
 					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.ResetGlobals,
+					null,
+					4780865251720199,
+					false
 				]
 				]
 			]
@@ -32859,6 +32045,13 @@ false,false,2596508113697225,false
 					]
 					]
 				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.ResetGlobals,
+					null,
+					1276532379143739,
+					false
+				]
 				]
 			]
 ,			[
@@ -32891,7 +32084,7 @@ false,false,2596508113697225,false
 						7,
 						[
 							0,
-							3
+							5
 						]
 					]
 					]
@@ -32900,6 +32093,66 @@ false,false,2596508113697225,false
 				[
 				[
 					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					4548453527469871,
+					false
+					,[
+					[
+						11,
+						"score"
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					3931741184149637,
+					false
+					,[
+					[
+						11,
+						"gameend"
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					3584071187676829,
+					false
+					,[
+					[
+						11,
+						"timer_time"
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+,				[
+					-1,
 					cr.system_object.prototype.acts.GoToLayout,
 					null,
 					9992947067431593,
@@ -32907,7 +32160,7 @@ false,false,2596508113697225,false
 					,[
 					[
 						6,
-						"Settings"
+						"Game"
 					]
 					]
 				]
@@ -32935,7 +32188,7 @@ false,false,2596508113697225,false
 				,[
 				[
 					4,
-					19
+					18
 				]
 				]
 			]
@@ -32951,7 +32204,7 @@ false,false,2596508113697225,false
 				2351606435676553,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -32977,7 +32230,7 @@ false,false,2596508113697225,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					3337581541900653,
@@ -33006,7 +32259,7 @@ false,false,2596508113697225,false
 				9786794374802652,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -33032,7 +32285,7 @@ false,false,2596508113697225,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					6125059931730549,
@@ -33075,7 +32328,7 @@ false,false,2596508113697225,false
 				7303999374908644,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -33101,7 +32354,7 @@ false,false,2596508113697225,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					3347814364450474,
@@ -33146,7 +32399,7 @@ false,false,2596508113697225,false
 			9961449587629747,
 			[
 			[
-				21,
+				20,
 				cr.plugins_.Phonegap.prototype.cnds.OnBack,
 				null,
 				1,
@@ -34430,7 +33683,7 @@ false,false,2596508113697225,false
 			8884897769229845,
 			[
 			[
-				25,
+				24,
 				cr.plugins_.Text.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -34443,7 +33696,7 @@ false,false,2596508113697225,false
 			],
 			[
 			[
-				25,
+				24,
 				cr.plugins_.Text.prototype.acts.SetWebFont,
 				null,
 				1201840936439848,
@@ -35175,6 +34428,81 @@ false,false,2596508113697225,false
 						[
 							0,
 							4
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1630614111870311,
+				[
+				[
+					9,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					1263973097859142,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							4
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetGroupActive,
+					null,
+					30199812778204,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"ShrinkCustom"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					8217195191675006,
+					false
+					,[
+					[
+						11,
+						"touchType"
+					]
+,					[
+						7,
+						[
+							0,
+							5
 						]
 					]
 					]
@@ -36897,7 +36225,7 @@ false,false,5068828181573646,false
 			4896963974408381,
 			[
 			[
-				21,
+				20,
 				cr.plugins_.Phonegap.prototype.cnds.OnBack,
 				null,
 				1,
@@ -36910,7 +36238,7 @@ false,false,5068828181573646,false
 			],
 			[
 			[
-				20,
+				19,
 				cr.plugins_.PhonegapDialog.prototype.acts.Confirm,
 				null,
 				1003404360179183,
@@ -36942,7 +36270,7 @@ false,false,5068828181573646,false
 			4199469758556437,
 			[
 			[
-				20,
+				19,
 				cr.plugins_.PhonegapDialog.prototype.cnds.ConfirmYesClicked,
 				null,
 				1,
@@ -36955,7 +36283,7 @@ false,false,5068828181573646,false
 			],
 			[
 			[
-				21,
+				20,
 				cr.plugins_.Phonegap.prototype.acts.Close,
 				null,
 				9342096153153293,
@@ -37904,7 +37232,7 @@ false,false,5068828181573646,false
 			],
 			[
 			[
-				23,
+				22,
 				cr.plugins_.AJAX.prototype.acts.Request,
 				null,
 				5765747312219158,
@@ -37936,7 +37264,7 @@ false,false,5068828181573646,false
 			4600422623759844,
 			[
 			[
-				23,
+				22,
 				cr.plugins_.AJAX.prototype.cnds.OnComplete,
 				null,
 				1,
@@ -37985,7 +37313,7 @@ false,false,5068828181573646,false
 							,[
 [
 								20,
-								23,
+								22,
 								cr.plugins_.AJAX.prototype.exps.LastData,
 								true,
 								null
@@ -38026,7 +37354,7 @@ false,false,5068828181573646,false
 						7,
 						[
 							20,
-							23,
+							22,
 							cr.plugins_.AJAX.prototype.exps.LastData,
 							true,
 							null
@@ -38676,7 +38004,7 @@ false,false,5068828181573646,false
 			7075766080642061,
 			[
 			[
-				21,
+				20,
 				cr.plugins_.Phonegap.prototype.cnds.OnBack,
 				null,
 				1,
@@ -39235,7 +38563,7 @@ false,false,274943258950527,false
 					]
 				]
 ,				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					901612360056747,
@@ -39384,7 +38712,7 @@ false,false,274943258950527,false
 					]
 				]
 ,				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					8621882042881163,
@@ -39426,7 +38754,7 @@ false,false,274943258950527,false
 					938963918199614,
 					[
 					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 						null,
 						0,
@@ -39452,7 +38780,7 @@ false,false,274943258950527,false
 					],
 					[
 					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.acts.SetVisible,
 						null,
 						9727427838017111,
@@ -39474,7 +38802,7 @@ false,false,274943258950527,false
 					4598400946975801,
 					[
 					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -39504,7 +38832,7 @@ false,false,274943258950527,false
 					],
 					[
 					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.acts.SetVisible,
 						null,
 						203872843407085,
@@ -39635,7 +38963,7 @@ false,false,274943258950527,false
 					]
 				]
 ,				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					6346090511922921,
@@ -39677,7 +39005,7 @@ false,false,274943258950527,false
 					2198413563570819,
 					[
 					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 						null,
 						0,
@@ -39703,7 +39031,7 @@ false,false,274943258950527,false
 					],
 					[
 					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.acts.SetVisible,
 						null,
 						3464795223676559,
@@ -39725,7 +39053,7 @@ false,false,274943258950527,false
 					2267950660250836,
 					[
 					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -39755,7 +39083,7 @@ false,false,274943258950527,false
 					],
 					[
 					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.acts.SetVisible,
 						null,
 						8148195580677493,
@@ -39828,7 +39156,7 @@ false,false,274943258950527,false
 			],
 			[
 			[
-				18,
+				17,
 				cr.plugins_.Browser.prototype.acts.GoToURL,
 				null,
 				5045216510527841,
@@ -39869,12 +39197,12 @@ false,false,274943258950527,false
 				,[
 				[
 					4,
-					19
+					18
 				]
 				]
 			]
 ,			[
-				19,
+				18,
 				cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 				null,
 				0,
@@ -39941,7 +39269,7 @@ false,false,274943258950527,false
 				2358950024658984,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -39967,7 +39295,7 @@ false,false,274943258950527,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					7862008442808178,
@@ -39996,7 +39324,7 @@ false,false,274943258950527,false
 				8531419397216652,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -40022,7 +39350,7 @@ false,false,274943258950527,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					7842433326174502,
@@ -40051,7 +39379,7 @@ false,false,274943258950527,false
 				8592564115560136,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -40077,7 +39405,7 @@ false,false,274943258950527,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					5750287710418075,
@@ -40106,7 +39434,7 @@ false,false,274943258950527,false
 				7553962669571861,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -40132,7 +39460,7 @@ false,false,274943258950527,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					7777750169463025,
@@ -40175,12 +39503,12 @@ false,false,274943258950527,false
 				,[
 				[
 					4,
-					19
+					18
 				]
 				]
 			]
 ,			[
-				19,
+				18,
 				cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 				null,
 				0,
@@ -40247,7 +39575,7 @@ false,false,274943258950527,false
 				3793207102261664,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -40273,7 +39601,7 @@ false,false,274943258950527,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					6604258503732151,
@@ -40302,7 +39630,7 @@ false,false,274943258950527,false
 				2563708116556463,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -40328,7 +39656,7 @@ false,false,274943258950527,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					7678191310731234,
@@ -40357,7 +39685,7 @@ false,false,274943258950527,false
 				9965987204310954,
 				[
 				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -40383,7 +39711,7 @@ false,false,274943258950527,false
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Browser.prototype.acts.GoToURL,
 					null,
 					3679009184517639,
@@ -40414,7 +39742,7 @@ false,false,274943258950527,false
 			6600051563521867,
 			[
 			[
-				21,
+				20,
 				cr.plugins_.Phonegap.prototype.cnds.OnBack,
 				null,
 				1,
@@ -40459,7 +39787,7 @@ false,false,274943258950527,false
 			4549558629170994,
 			[
 			[
-				21,
+				20,
 				cr.plugins_.Phonegap.prototype.cnds.OnBack,
 				null,
 				1,
@@ -41834,7 +41162,7 @@ false,false,274943258950527,false
 			],
 			[
 			[
-				22,
+				21,
 				cr.plugins_.TextBox.prototype.acts.SetFocus,
 				null,
 				746019054634538,
@@ -41885,7 +41213,7 @@ false,false,274943258950527,false
 						,[
 [
 							20,
-							22,
+							21,
 							cr.plugins_.TextBox.prototype.exps.Text,
 							true,
 							null
@@ -41926,7 +41254,7 @@ false,false,274943258950527,false
 					7,
 					[
 						20,
-						22,
+						21,
 						cr.plugins_.TextBox.prototype.exps.Text,
 						true,
 						null
@@ -41998,7 +41326,7 @@ false,false,274943258950527,false
 						,[
 [
 							20,
-							22,
+							21,
 							cr.plugins_.TextBox.prototype.exps.Text,
 							true,
 							null
@@ -42022,7 +41350,7 @@ false,false,274943258950527,false
 			],
 			[
 			[
-				22,
+				21,
 				cr.plugins_.TextBox.prototype.acts.SetText,
 				null,
 				6733625617090127,
@@ -42036,7 +41364,7 @@ false,false,274943258950527,false
 						,[
 [
 							20,
-							22,
+							21,
 							cr.plugins_.TextBox.prototype.exps.Text,
 							true,
 							null
