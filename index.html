@@ -19,7 +19,7 @@
 			margin: 0;
 		}
 		html, body {
-			background: #fff;
+			background: #000;
 			color: #fff;
 			overflow: hidden;
 			touch-action: none;
@@ -69,7 +69,7 @@
 
     <script>
 		jQuery(window).resize(function() {
-			cr_sizeCanvas(window.innerWidth, window.innerHeight);
+			cr_sizeCanvas(jQuery(window).width(), jQuery(window).height());
 		});
 		
 		document.addEventListener("deviceready", function ()

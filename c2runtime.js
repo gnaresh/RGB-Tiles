@@ -1613,6 +1613,19 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		this.locLayerAngle = gl.getUniformLocation(shaderProgram, "layerAngle");
 		this.locViewOrigin = gl.getUniformLocation(shaderProgram, "viewOrigin");
 		this.hasAnyOptionalUniforms = !!(this.locPixelWidth || this.locPixelHeight || this.locSeconds || this.locSamplerBack || this.locDestStart || this.locDestEnd || this.locLayerScale || this.locLayerAngle || this.locViewOrigin);
+		this.lpPixelWidth = -999;		// set to something unlikely so never counts as cached on first set
+		this.lpPixelHeight = -999;
+		this.lpOpacity = 1;
+		this.lpDestStartX = 0.0;
+		this.lpDestStartY = 0.0;
+		this.lpDestEndX = 1.0;
+		this.lpDestEndY = 1.0;
+		this.lpLayerScale = 1.0;
+		this.lpLayerAngle = 0.0;
+		this.lpViewOriginX = 0.0;
+		this.lpViewOriginY = 0.0;
+		this.lastCustomParams = [];
+		this.lpMatMV = mat4.create();
 		if (this.locOpacity)
 			gl.uniform1f(this.locOpacity, 1);
 		if (this.locSamplerFront)
@@ -1630,6 +1643,20 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		if (this.locViewOrigin)
 			gl.uniform2f(this.locViewOrigin, 0.0, 0.0);
 		this.hasCurrentMatMV = false;		// matMV needs updating
+	};
+	function areMat4sEqual(a, b)
+	{
+		return a[0]===b[0]&&a[1]===b[1]&&a[2]===b[2]&&a[3]===b[3]&&
+			   a[4]===b[4]&&a[5]===b[5]&&a[6]===b[6]&&a[7]===b[7]&&
+			   a[8]===b[8]&&a[9]===b[9]&&a[10]===b[10]&&a[11]===b[11]&&
+			   a[12]===b[12]&&a[13]===b[13]&&a[14]===b[14]&&a[15]===b[15];
+	};
+	GLShaderProgram.prototype.updateMatMV = function (mv)
+	{
+		if (areMat4sEqual(this.lpMatMV, mv))
+			return;		// no change, save the expensive GL call
+		mat4.set(mv, this.lpMatMV);
+		this.gl.uniformMatrix4fv(this.locMatMV, false, mv);
 	};
 	GLWrap_.prototype.createShaderProgram = function(shaderEntry, vsSource, name)
 	{
@@ -1679,6 +1706,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		for (i = 0, len = ret.parameters.length; i < len; i++)
 		{
 			ret.parameters[i][1] = gl.getUniformLocation(shaderProgram, ret.parameters[i][0]);
+			ret.lastCustomParams.push(0);
 			gl.uniform1f(ret.parameters[i][1], 0);
 		}
 		cr.seal(ret);
@@ -1842,8 +1870,11 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		var glwrap = this.glwrap;
 		glwrap.currentOpacity = o;
 		var curProg = glwrap.currentShader;
-		if (curProg.locOpacity)
+		if (curProg.locOpacity && curProg.lpOpacity !== o)
+		{
+			curProg.lpOpacity = o;
 			this.gl.uniform1f(curProg.locOpacity, o);
+		}
 	};
 	GLBatchJob.prototype.doQuad = function ()
 	{
@@ -1861,7 +1892,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 			s = shaderPrograms[i];
 			if (i === currentProgram && s.locMatMV)
 			{
-				this.gl.uniformMatrix4fv(s.locMatMV, false, this.mat4param);
+				s.updateMatMV(this.mat4param);
 				s.hasCurrentMatMV = true;
 			}
 			else
@@ -1916,7 +1947,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		gl.useProgram(s.shaderProgram);
 		if (!s.hasCurrentMatMV && s.locMatMV)
 		{
-			gl.uniformMatrix4fv(s.locMatMV, false, glwrap.currentMV);
+			s.updateMatMV(glwrap.currentMV);
 			s.hasCurrentMatMV = true;
 		}
 		gl.enableVertexAttribArray(s.locAPos);
@@ -1948,11 +1979,14 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		gl.useProgram(s.shaderProgram);						// switch to
 		if (!s.hasCurrentMatMV && s.locMatMV)
 		{
-			gl.uniformMatrix4fv(s.locMatMV, false, glwrap.currentMV);
+			s.updateMatMV(glwrap.currentMV);
 			s.hasCurrentMatMV = true;
 		}
-		if (s.locOpacity)
+		if (s.locOpacity && s.lpOpacity !== glwrap.currentOpacity)
+		{
+			s.lpOpacity = glwrap.currentOpacity;
 			gl.uniform1f(s.locOpacity, glwrap.currentOpacity);
+		}
 		if (s.locAPos >= 0)
 		{
 			gl.enableVertexAttribArray(s.locAPos);
@@ -1978,27 +2012,67 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 			this.glwrap.lastTexture1 = this.texParam;
 			gl.activeTexture(gl.TEXTURE0);
 		}
-		if (s.locPixelWidth)
-			gl.uniform1f(s.locPixelWidth, mat4param[0]);
-		if (s.locPixelHeight)
-			gl.uniform1f(s.locPixelHeight, mat4param[1]);
-		if (s.locDestStart)
-			gl.uniform2f(s.locDestStart, mat4param[2], mat4param[3]);
-		if (s.locDestEnd)
-			gl.uniform2f(s.locDestEnd, mat4param[4], mat4param[5]);
-		if (s.locLayerScale)
-			gl.uniform1f(s.locLayerScale, mat4param[6]);
-		if (s.locLayerAngle)
-			gl.uniform1f(s.locLayerAngle, mat4param[7]);
-		if (s.locViewOrigin)
-			gl.uniform2f(s.locViewOrigin, mat4param[8], mat4param[9]);
+		var v = mat4param[0];
+		var v2;
+		if (s.locPixelWidth && v !== s.lpPixelWidth)
+		{
+			s.lpPixelWidth = v;
+			gl.uniform1f(s.locPixelWidth, v);
+		}
+		v = mat4param[1];
+		if (s.locPixelHeight && v !== s.lpPixelHeight)
+		{
+			s.lpPixelHeight = v;
+			gl.uniform1f(s.locPixelHeight, v);
+		}
+		v = mat4param[2];
+		v2 = mat4param[3];
+		if (s.locDestStart && (v !== s.lpDestStartX || v2 !== s.lpDestStartY))
+		{
+			s.lpDestStartX = v;
+			s.lpDestStartY = v2;
+			gl.uniform2f(s.locDestStart, v, v2);
+		}
+		v = mat4param[4];
+		v2 = mat4param[5];
+		if (s.locDestEnd && (v !== s.lpDestEndX || v2 !== s.lpDestEndY))
+		{
+			s.lpDestEndX = v;
+			s.lpDestEndY = v;
+			gl.uniform2f(s.locDestEnd, v, v2);
+		}
+		v = mat4param[6];
+		if (s.locLayerScale && v !== s.lpLayerScale)
+		{
+			s.lpLayerScale = v;
+			gl.uniform1f(s.locLayerScale, v);
+		}
+		v = mat4param[7];
+		if (s.locLayerAngle && v !== s.lpLayerAngle)
+		{
+			s.lpLayerAngle = v;
+			gl.uniform1f(s.locLayerAngle, v);
+		}
+		v = mat4param[8];
+		v2 = mat4param[9];
+		if (s.locViewOrigin && (v !== s.lpViewOriginX || v !== s.lpViewOriginY))
+		{
+			s.lpViewOriginX = v;
+			s.lpViewOriginY = v2;
+			gl.uniform2f(s.locViewOrigin, v, v2);
+		}
 		if (s.locSeconds)
 			gl.uniform1f(s.locSeconds, cr.performance_now() / 1000.0);
 		if (s.parameters.length)
 		{
 			for (i = 0, len = s.parameters.length; i < len; i++)
 			{
-				gl.uniform1f(s.parameters[i][1], this.shaderParams[i]);
+				v = this.shaderParams[i];
+				if (v !== s.lastCustomParams[i])
+				{
+					s.lastCustomParams[i] = v;
+					gl.uniform1f(s.parameters[i][1], v);
+				}
 			}
 		}
 	};
@@ -2666,6 +2740,20 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 ;
 (function()
 {
+	function window_innerWidth()
+	{
+		if (typeof jQuery !== "undefined")
+			return jQuery(window).width();
+		else
+			return window.innerWidth;
+	};
+	function window_innerHeight()
+	{
+		if (typeof jQuery !== "undefined")
+			return jQuery(window).height();
+		else
+			return window.innerHeight;
+	};
 	function Runtime(canvas)
 	{
 		if (!canvas || (!canvas.getContext && !canvas["dc"]))
@@ -2676,7 +2764,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 			canvas["c2runtime"] = this;
 		var self = this;
 		this.isCrosswalk = /crosswalk/i.test(navigator.userAgent) || /xwalk/i.test(navigator.userAgent) || !!(typeof window["c2isCrosswalk"] !== "undefined" && window["c2isCrosswalk"]);
-		this.isPhoneGap = (!this.isCrosswalk && (typeof window["device"] !== "undefined" && (typeof window["device"]["cordova"] !== "undefined" || typeof window["device"]["phonegap"] !== "undefined"))) || (typeof window["c2isphonegap"] !== "undefined" && window["c2isphonegap"]);
+		this.isPhoneGap = this.isCrosswalk || (typeof window["device"] !== "undefined" && (typeof window["device"]["cordova"] !== "undefined" || typeof window["device"]["phonegap"] !== "undefined")) || (typeof window["c2isphonegap"] !== "undefined" && window["c2isphonegap"]);
 		this.isDirectCanvas = !!canvas["dc"];
 		this.isAppMobi = (typeof window["AppMobi"] !== "undefined" || this.isDirectCanvas);
 		this.isCocoonJs = !!window["c2cocoonjs"];
@@ -2753,6 +2841,10 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 			window["ondragover"] = function(e) { e.preventDefault(); return false; };
 			window["ondrop"] = function(e) { e.preventDefault(); return false; };
 			require("nw.gui")["App"]["clearCache"]();
+		}
+		if (this.isAndroidStockBrowser && typeof jQuery !== "undefined")
+		{
+			jQuery("canvas").parents("*").css("overflow", "visible");
 		}
 		this.width = canvas.width;
 		this.height = canvas.height;
@@ -2873,7 +2965,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		var attribs;
 		var alpha_canvas = this.alphaBackground && !(this.isNodeWebkit || this.isWinJS || this.isWindowsPhone8 || this.isCrosswalk);
 		if (this.fullscreen_mode > 0)
-			this["setSize"](window.innerWidth, window.innerHeight, true);
+			this["setSize"](window_innerWidth(), window_innerHeight(), true);
 		try {
 			if (this.enableWebGL && (this.isCocoonJs || this.isEjecta || !this.isDomFree))
 			{
@@ -3054,6 +3146,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		{
 			document.addEventListener("touchstart", unfocusFormControlFunc);
 		}
+		document.addEventListener("mousedown", unfocusFormControlFunc);
 		if (this.fullscreen_mode === 0 && this.isRetina && this.devicePixelRatio > 1)
 		{
 			this["setSize"](this.original_width, this.original_height, true);
@@ -3568,9 +3661,9 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 				familytype.members.push(familymember);
 			}
 		}
-		for (i = 0, len = pm[26].length; i < len; i++)
+		for (i = 0, len = pm[27].length; i < len; i++)
 		{
-			var containerdata = pm[26][i];
+			var containerdata = pm[27][i];
 			var containertypes = [];
 			for (j = 0, lenj = containerdata.length; j < lenj; j++)
 				containertypes.push(this.types_by_index[containerdata[j]]);
@@ -3650,6 +3743,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		this.fullscreenScalingQuality = this.wantFullscreenScalingQuality;
 		this.downscalingQuality = pm[24];	// 0 = low (mips off), 1 = medium (mips on, dense spritesheet), 2 = high (mips on, sparse spritesheet)
 		this.preloadSounds = pm[25];		// 0 = no, 1 = yes
+		this.projectName = pm[26];
 		this.start_time = Date.now();
 	};
 	var anyImageHadError = false;
@@ -3886,7 +3980,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 			var curheight = window.innerHeight;
 			if (this.lastWindowWidth !== curwidth || this.lastWindowHeight !== curheight)
 			{
-					this["setSize"](curwidth, curheight);
+				this["setSize"](window_innerWidth(), window_innerHeight());
 			}
 		}
 		if (!this.isDomFree)
@@ -5087,7 +5181,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		for (i = 0, len = candidates.length; i < len; ++i)
 		{
 			s = candidates[i];
-			if (!s.extra.solidEnabled)
+			if (!s.extra["solidEnabled"])
 				continue;
 			if (this.testOverlap(inst, s))
 			{
@@ -5105,7 +5199,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		for (i = 0, len = candidates.length; i < len; ++i)
 		{
 			s = candidates[i];
-			if (!s.extra.solidEnabled)
+			if (!s.extra["solidEnabled"])
 				continue;
 			if (this.testRectOverlap(r, s))
 			{
@@ -5131,7 +5225,7 @@ quat4.str=function(a){return"["+a[0]+", "+a[1]+", "+a[2]+", "+a[3]+"]"};
 		for (i = 0, len = candidates.length; i < len; ++i)
 		{
 			j = candidates[i];
-			if (!j.extra.jumpthruEnabled)
+			if (!j.extra["jumpthruEnabled"])
 				continue;
 			if (this.testOverlap(inst, j))
 			{
@@ -9978,11 +10072,11 @@ cr.system_object.prototype.loadFromJSON = function (o)
         if (cmp === 0)
         {
             var cnd = this.runtime.getCurrentCondition();
-            if (!cnd.extra.CompareTime_executed)
+            if (!cnd.extra["CompareTime_executed"])
             {
                 if (elapsed >= t)
                 {
-                    cnd.extra.CompareTime_executed = true;
+                    cnd.extra["CompareTime_executed"] = true;
                     return true;
                 }
             }
@@ -10185,8 +10279,8 @@ cr.system_object.prototype.loadFromJSON = function (o)
     };
 	function foreach_sortinstances(a, b)
 	{
-		var va = a.extra.c2_foreachordered_val;
-		var vb = b.extra.c2_foreachordered_val;
+		var va = a.extra["c2_feo_val"];
+		var vb = b.extra["c2_feo_val"];
 		if (cr.is_number(va) && cr.is_number(vb))
 			return va - vb;
 		else
@@ -10217,7 +10311,7 @@ cr.system_object.prototype.loadFromJSON = function (o)
 		var i, len, j, lenj, inst, s, sol2;
 		for (i = 0, len = instances.length; i < len; i++)
 		{
-			instances[i].extra.c2_foreachordered_val = current_condition.parameters[1].get(i);
+			instances[i].extra["c2_feo_val"] = current_condition.parameters[1].get(i);
 		}
 		instances.sort(foreach_sortinstances);
 		if (order === 1)
@@ -10353,34 +10447,34 @@ cr.system_object.prototype.loadFromJSON = function (o)
     SysCnds.prototype.TriggerOnce = function ()
     {
         var cndextra = this.runtime.getCurrentCondition().extra;
-		if (typeof cndextra.TriggerOnce_lastTick === "undefined")
-			cndextra.TriggerOnce_lastTick = -1;
-        var last_tick = cndextra.TriggerOnce_lastTick;
+		if (typeof cndextra["TriggerOnce_lastTick"] === "undefined")
+			cndextra["TriggerOnce_lastTick"] = -1;
+        var last_tick = cndextra["TriggerOnce_lastTick"];
         var cur_tick = this.runtime.tickcount;
-        cndextra.TriggerOnce_lastTick = cur_tick;
+        cndextra["TriggerOnce_lastTick"] = cur_tick;
         return this.runtime.layout_first_tick || last_tick !== cur_tick - 1;
     };
     SysCnds.prototype.Every = function (seconds)
     {
         var cnd = this.runtime.getCurrentCondition();
-        var last_time = cnd.extra.Every_lastTime || 0;
+        var last_time = cnd.extra["Every_lastTime"] || 0;
         var cur_time = this.runtime.kahanTime.sum;
-		if (typeof cnd.extra.Every_seconds === "undefined")
-			cnd.extra.Every_seconds = seconds;
-		var this_seconds = cnd.extra.Every_seconds;
+		if (typeof cnd.extra["Every_seconds"] === "undefined")
+			cnd.extra["Every_seconds"] = seconds;
+		var this_seconds = cnd.extra["Every_seconds"];
         if (cur_time >= last_time + this_seconds)
         {
-            cnd.extra.Every_lastTime = last_time + this_seconds;
-			if (cur_time >= cnd.extra.Every_lastTime + 0.04)
+            cnd.extra["Every_lastTime"] = last_time + this_seconds;
+			if (cur_time >= cnd.extra["Every_lastTime"] + 0.04)
 			{
-				cnd.extra.Every_lastTime = cur_time;
+				cnd.extra["Every_lastTime"] = cur_time;
 			}
-			cnd.extra.Every_seconds = seconds;
+			cnd.extra["Every_seconds"] = seconds;
             return true;
         }
 		else if (cur_time < last_time - 0.1)
 		{
-			cnd.extra.Every_lastTime = cur_time;
+			cnd.extra["Every_lastTime"] = cur_time;
 		}
 		return false;
     };
@@ -11574,6 +11668,10 @@ cr.system_object.prototype.loadFromJSON = function (o)
 	{
 		ret.set_string(this.runtime.versionstr);
 	};
+	SysExps.prototype.projectname = function (ret)
+	{
+		ret.set_string(this.runtime.projectName);
+	};
 	SysExps.prototype.anglelerp = function (ret, a, b, x)
 	{
 		a = cr.to_radians(a);
@@ -12736,7 +12834,7 @@ cr.system_object.prototype.loadFromJSON = function (o)
 				{
 					if (behname === f.behaviors[j].name)
 					{
-						this.extra.lastBehIndex = index;
+						this.extra["lastBehIndex"] = index;
 						return f.behaviors[j];
 					}
 					index++;
@@ -12746,7 +12844,7 @@ cr.system_object.prototype.loadFromJSON = function (o)
 		for (i = 0, len = this.behaviors.length; i < len; i++) {
 			if (behname === this.behaviors[i].name)
 			{
-				this.extra.lastBehIndex = index;
+				this.extra["lastBehIndex"] = index;
 				return this.behaviors[i];
 			}
 			index++;
@@ -12757,7 +12855,7 @@ cr.system_object.prototype.loadFromJSON = function (o)
 	{
 		var b = this.getBehaviorByName(behname);
 		if (b)
-			return this.extra.lastBehIndex;
+			return this.extra["lastBehIndex"];
 		else
 			return -1;
 	};
@@ -15021,7 +15119,10 @@ cr.plugins_.Audio = function(runtime)
 				try {
 					this.instanceObject.play();
 				}
-				catch (e) {}	// sometimes throws on WP8.1... try not to kill the app
+				catch (e) {		// sometimes throws on WP8.1... try not to kill the app
+					if (console && console.log)
+						console.log("[C2] WARNING: exception trying to play audio '" + this.buffer.src + "': ", e);
+				}
 			}
 			break;
 		case API_WEBAUDIO:
@@ -17741,6 +17842,334 @@ cr.plugins_.PhonegapDialog = function(runtime)
 }());
 ;
 ;
+/*
+cr.plugins_.PhonegapShortcut = function(runtime)
+{
+	this.runtime = runtime;
+	Type
+		onCreate
+	Instance
+		onCreate
+		draw
+		drawGL
+	cnds
+	acts
+	exps
+};
+*/
+cr.plugins_.PhonegapShortcut = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.PhonegapShortcut.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+/*
+		var newScriptTag=document.createElement('script');
+		newScriptTag.setAttribute("type","text/javascript");
+		newScriptTag.setAttribute("src", "mylib.js");
+		document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		var scripts=document.getElementsByTagName("script");
+		var scriptExist=false;
+		for(var i=0;i<scripts.length;i++){
+			if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+				scriptExist=true;
+				break;
+			}
+		}
+		if(!scriptExist){
+			var newScriptTag=document.createElement("script");
+			newScriptTag.setAttribute("type","text/javascript");
+			newScriptTag.setAttribute("src", "cordova.js");
+			document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		}
+*/
+		if(this.runtime.isBlackberry10 || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
+			var scripts=document.getElementsByTagName("script");
+			var scriptExist=false;
+			for(var i=0;i<scripts.length;i++){
+				if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+					scriptExist=true;
+					break;
+				}
+			}
+			if(!scriptExist){
+				var newScriptTag=document.createElement("script");
+				newScriptTag.setAttribute("type","text/javascript");
+				newScriptTag.setAttribute("src", "cordova.js");
+				document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+			}
+		}
+	};
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	instanceProto.onCreate = function()
+	{
+/*
+		var self=this;
+		window.addEventListener("resize", function () {//cranberrygame
+			self.runtime.trigger(cr.plugins_.PhonegapShortcut.prototype.cnds.TriggerCondition, self);
+		});
+*/
+		if (!(this.runtime.isAndroid))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+	};
+	instanceProto.draw = function(ctx)
+	{
+	};
+	instanceProto.drawGL = function (glw)
+	{
+	};
+/*
+	instanceProto.at = function (x)
+	{
+		return this.arr[x];
+	};
+	instanceProto.set = function (x, val)
+	{
+		this.arr[x] = val;
+	};
+*/
+	function Cnds() {};
+/*
+	Cnds.prototype.MyCondition = function (myparam)
+	{
+		return myparam >= 0;
+	};
+	Cnds.prototype.TriggerCondition = function ()
+	{
+		return true;
+	};
+*/
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+/*
+	Acts.prototype.MyAction = function (myparam)
+	{
+		alert(myparam);
+	};
+	Acts.prototype.TriggerAction = function ()
+	{
+		var self=this;
+		self.runtime.trigger(cr.plugins_.PhonegapShortcut.prototype.cnds.TriggerCondition, self);
+	};
+*/
+	Acts.prototype.CreateShortcut = function (message)
+	{
+		if (!(this.runtime.isAndroid))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		window["plugins"]["Shortcut"]["CreateShortcut"](message, null, null);
+	};
+	Acts.prototype.RemoveShortcut = function (message)
+	{
+		if (!(this.runtime.isAndroid))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		window["plugins"]["Shortcut"]["RemoveShortcut"](message, null, null);
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+/*
+	Exps.prototype.MyExpression = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
+	{
+		ret.set_int(1337);				// return our value
+	};
+	Exps.prototype.Text = function (ret, param) //cranberrygame
+	{
+		ret.set_string("Hello");		// for ef_return_string
+	};
+*/
+	pluginProto.exps = new Exps();
+}());
+;
+;
+/*
+cr.plugins_.PhonegapVibration = function(runtime)
+{
+	this.runtime = runtime;
+	Type
+		onCreate
+	Instance
+		onCreate
+		draw
+		drawGL
+	cnds
+	acts
+	exps
+};
+*/
+cr.plugins_.PhonegapVibration = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.PhonegapVibration.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+/*
+		var newScriptTag=document.createElement('script');
+		newScriptTag.setAttribute("type","text/javascript");
+		newScriptTag.setAttribute("src", "mylib.js");
+		document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		var scripts=document.getElementsByTagName("script");
+		var scriptExist=false;
+		for(var i=0;i<scripts.length;i++){
+			if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+				scriptExist=true;
+				break;
+			}
+		}
+		if(!scriptExist){
+			var newScriptTag=document.createElement("script");
+			newScriptTag.setAttribute("type","text/javascript");
+			newScriptTag.setAttribute("src", "cordova.js");
+			document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		}
+*/
+		if(this.runtime.isBlackberry10 || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
+			var scripts=document.getElementsByTagName("script");
+			var scriptExist=false;
+			for(var i=0;i<scripts.length;i++){
+				if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+					scriptExist=true;
+					break;
+				}
+			}
+			if(!scriptExist){
+				var newScriptTag=document.createElement("script");
+				newScriptTag.setAttribute("type","text/javascript");
+				newScriptTag.setAttribute("src", "cordova.js");
+				document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+			}
+		}
+	};
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	instanceProto.onCreate = function()
+	{
+/*
+		var self=this;
+		window.addEventListener("resize", function () {//cranberrygame
+			self.runtime.trigger(cr.plugins_.PhonegapVibration.prototype.cnds.TriggerCondition, self);
+		});
+*/
+		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+	};
+	instanceProto.draw = function(ctx)
+	{
+	};
+	instanceProto.drawGL = function (glw)
+	{
+	};
+/*
+	instanceProto.at = function (x)
+	{
+		return this.arr[x];
+	};
+	instanceProto.set = function (x, val)
+	{
+		this.arr[x] = val;
+	};
+*/
+	function Cnds() {};
+/*
+	Cnds.prototype.MyCondition = function (myparam)
+	{
+		return myparam >= 0;
+	};
+	Cnds.prototype.TriggerCondition = function ()
+	{
+		return true;
+	};
+*/
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+/*
+	Acts.prototype.MyAction = function (myparam)
+	{
+		alert(myparam);
+	};
+	Acts.prototype.TriggerAction = function ()
+	{
+		var self=this;
+		self.runtime.trigger(cr.plugins_.PhonegapVibration.prototype.cnds.TriggerCondition, self);
+	};
+*/
+	Acts.prototype.Vibrate = function (pattern_,repeat)
+	{
+		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		if (repeat==1)
+			repeat=-1;
+		try {
+			var arr = pattern_.split(",");
+			var i, len;
+			for (i = 0, len = arr.length; i < len; i++)
+			{
+				arr[i] = parseInt(arr[i], 10);
+			}
+			arr.unshift(0);
+			navigator["notification"]["vibrateWithPattern"](arr, repeat);
+		}
+		catch (e) {}
+	};
+	Acts.prototype.CancelVibration = function ()
+	{
+		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		navigator["notification"]["cancelVibration"]();
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+/*
+	Exps.prototype.MyExpression = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
+	{
+		ret.set_int(1337);				// return our value
+	};
+	Exps.prototype.Text = function (ret, param) //cranberrygame
+	{
+		ret.set_string("Hello");		// for ef_return_string
+	};
+*/
+	pluginProto.exps = new Exps();
+}());
+;
+;
 cr.plugins_.Sprite = function(runtime)
 {
 	this.runtime = runtime;
@@ -18456,16 +18885,16 @@ cr.plugins_.Sprite = function(runtime)
 		var runtime = this.runtime;
 		var cnd = runtime.getCurrentCondition();
 		var ltype = cnd.type;
-		if (!cnd.extra.collmemory)
+		if (!cnd.extra["collmemory"])
 		{
-			cnd.extra.collmemory = {};
+			cnd.extra["collmemory"] = {};
 			runtime.addDestroyCallback((function (collmemory) {
 				return function(inst) {
 					collmemory_removeInstance(collmemory, inst);
 				};
-			})(cnd.extra.collmemory));
+			})(cnd.extra["collmemory"]));
 		}
-		var collmemory = cnd.extra.collmemory;
+		var collmemory = cnd.extra["collmemory"];
 		var lsol = ltype.getCurrentSol();
 		var rsol = rtype.getCurrentSol();
 		var linstances = lsol.getObjects();
@@ -18720,10 +19149,10 @@ cr.plugins_.Sprite = function(runtime)
 		this.runtime.isInOnDestroy--;
 		var cur_act = this.runtime.getCurrentAction();
 		var reset_sol = false;
-		if (cr.is_undefined(cur_act.extra.Spawn_LastExec) || cur_act.extra.Spawn_LastExec < this.runtime.execcount)
+		if (cr.is_undefined(cur_act.extra["Spawn_LastExec"]) || cur_act.extra["Spawn_LastExec"] < this.runtime.execcount)
 		{
 			reset_sol = true;
-			cur_act.extra.Spawn_LastExec = this.runtime.execcount;
+			cur_act.extra["Spawn_LastExec"] = this.runtime.execcount;
 		}
 		var sol;
 		if (obj != this.type)
@@ -20642,10 +21071,10 @@ cr.plugins_.Touch = function(runtime)
 			oldZoomRate = layer.zoomRate;
 			oldParallaxX = layer.parallaxX;
 			oldAngle = layer.angle;
-			layer.scale = this.runtime.running_layout.scale;
+			layer.scale = 1;
 			layer.zoomRate = 1.0;
 			layer.parallaxX = 1.0;
-			layer.angle = this.runtime.running_layout.angle;
+			layer.angle = 0;
 			ret.set_float(layer.canvasToLayer(this.touches[index].x, this.touches[index].y, true));
 			layer.scale = oldScale;
 			layer.zoomRate = oldZoomRate;
@@ -20680,10 +21109,10 @@ cr.plugins_.Touch = function(runtime)
 			oldZoomRate = layer.zoomRate;
 			oldParallaxX = layer.parallaxX;
 			oldAngle = layer.angle;
-			layer.scale = this.runtime.running_layout.scale;
+			layer.scale = 1;
 			layer.zoomRate = 1.0;
 			layer.parallaxX = 1.0;
-			layer.angle = this.runtime.running_layout.angle;
+			layer.angle = 0;
 			ret.set_float(layer.canvasToLayer(this.touches[index].x, this.touches[index].y, true));
 			layer.scale = oldScale;
 			layer.zoomRate = oldZoomRate;
@@ -20719,10 +21148,10 @@ cr.plugins_.Touch = function(runtime)
 			oldZoomRate = layer.zoomRate;
 			oldParallaxX = layer.parallaxX;
 			oldAngle = layer.angle;
-			layer.scale = this.runtime.running_layout.scale;
+			layer.scale = 1;
 			layer.zoomRate = 1.0;
 			layer.parallaxX = 1.0;
-			layer.angle = this.runtime.running_layout.angle;
+			layer.angle = 0;
 			ret.set_float(layer.canvasToLayer(touch.x, touch.y, true));
 			layer.scale = oldScale;
 			layer.zoomRate = oldZoomRate;
@@ -20757,10 +21186,10 @@ cr.plugins_.Touch = function(runtime)
 			oldZoomRate = layer.zoomRate;
 			oldParallaxY = layer.parallaxY;
 			oldAngle = layer.angle;
-			layer.scale = this.runtime.running_layout.scale;
+			layer.scale = 1;
 			layer.zoomRate = 1.0;
 			layer.parallaxY = 1.0;
-			layer.angle = this.runtime.running_layout.angle;
+			layer.angle = 0;
 			ret.set_float(layer.canvasToLayer(this.touches[index].x, this.touches[index].y, false));
 			layer.scale = oldScale;
 			layer.zoomRate = oldZoomRate;
@@ -20795,10 +21224,10 @@ cr.plugins_.Touch = function(runtime)
 			oldZoomRate = layer.zoomRate;
 			oldParallaxY = layer.parallaxY;
 			oldAngle = layer.angle;
-			layer.scale = this.runtime.running_layout.scale;
+			layer.scale = 1;
 			layer.zoomRate = 1.0;
 			layer.parallaxY = 1.0;
-			layer.angle = this.runtime.running_layout.angle;
+			layer.angle = 0;
 			ret.set_float(layer.canvasToLayer(this.touches[index].x, this.touches[index].y, false));
 			layer.scale = oldScale;
 			layer.zoomRate = oldZoomRate;
@@ -20834,10 +21263,10 @@ cr.plugins_.Touch = function(runtime)
 			oldZoomRate = layer.zoomRate;
 			oldParallaxY = layer.parallaxY;
 			oldAngle = layer.angle;
-			layer.scale = this.runtime.running_layout.scale;
+			layer.scale = 1;
 			layer.zoomRate = 1.0;
 			layer.parallaxY = 1.0;
-			layer.angle = this.runtime.running_layout.angle;
+			layer.angle = 0;
 			ret.set_float(layer.canvasToLayer(touch.x, touch.y, false));
 			layer.scale = oldScale;
 			layer.zoomRate = oldZoomRate;
@@ -21586,31 +22015,7 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.PhonegapDialog,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
 		cr.plugins_.Phonegap,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
-		cr.plugins_.Touch,
 		true,
 		false,
 		false,
@@ -21634,11 +22039,11 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.TextBox,
+		cr.plugins_.PhonegapDialog,
+		true,
 		false,
-		true,
-		true,
-		true,
+		false,
+		false,
 		false,
 		false,
 		false,
@@ -21655,6 +22060,54 @@ cr.getProjectModel = function() { return [
 		true,
 		true,
 		true,
+		false
+	]
+,	[
+		cr.plugins_.PhonegapShortcut,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.PhonegapVibration,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.Touch,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.TextBox,
+		false,
+		true,
+		true,
+		true,
+		false,
+		false,
+		false,
+		false,
 		false
 	]
 ,	[
@@ -22087,10 +22540,11 @@ cr.getProjectModel = function() { return [
 			false,
 			7439391566273606,
 			[
-				["images/social-sheet0.png", 41545, 1, 1, 256, 256, 1, 0.5, 0.5,[],[],0],
-				["images/social-sheet0.png", 41545, 259, 1, 256, 256, 1, 0.5, 0.5,[],[],0],
-				["images/social-sheet0.png", 41545, 517, 1, 256, 256, 1, 0.5, 0.5,[],[],0],
-				["images/social-sheet0.png", 41545, 1, 259, 256, 256, 1, 0.5, 0.5,[],[],0]
+				["images/social-sheet0.png", 47827, 1, 1, 256, 256, 1, 0.5, 0.5,[],[],0],
+				["images/social-sheet0.png", 47827, 259, 1, 256, 256, 1, 0.5, 0.5,[],[],0],
+				["images/social-sheet0.png", 47827, 517, 1, 256, 256, 1, 0.5, 0.5,[],[],0],
+				["images/social-sheet0.png", 47827, 1, 259, 256, 256, 1, 0.5, 0.5,[],[],0],
+				["images/social-sheet0.png", 47827, 259, 259, 256, 256, 1, 0.5, 0.5,[],[],0]
 			]
 			]
 		],
@@ -22224,6 +22678,42 @@ cr.getProjectModel = function() { return [
 	]
 ,	[
 		"t25",
+		cr.plugins_.PhonegapShortcut,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		6166331790361457,
+		[],
+		null
+		,[]
+	]
+,	[
+		"t26",
+		cr.plugins_.PhonegapVibration,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		5223976208309831,
+		[],
+		null
+		,[]
+	]
+,	[
+		"t27",
 		cr.plugins_.Text,
 		true,
 		[],
@@ -22241,7 +22731,7 @@ cr.getProjectModel = function() { return [
 	]
 	],
 	[
-		[25,11,8,13,14,5,3,4]
+		[27,11,8,13,14,5,3,4]
 	],
 	[
 	[
@@ -22494,7 +22984,7 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
-					"Touch tht bubble inside the box.",
+					"Touch the bubble inside the box.",
 					1,
 					"36pt GeosansLight",
 					"rgb(0,0,0)",
@@ -24587,7 +25077,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[360, 356, 0, 720, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				[360, 326, 0, 720, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				3,
 				97,
 				[
@@ -24607,7 +25097,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[201, 542, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				[221, 482, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				18,
 				99,
 				[
@@ -24623,7 +25113,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[521, 542, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				[501, 482, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				18,
 				100,
 				[
@@ -24639,7 +25129,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[361, 802, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				[361, 702, 0, 200, 200, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				18,
 				101,
 				[
@@ -24750,6 +25240,45 @@ cr.getProjectModel = function() { return [
 				],
 				[
 					"Wink to your friends",
+					1,
+					"36pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+,			[
+				[360, 1006, 0, 150, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				18,
+				135,
+				[
+					[0]
+				],
+				[
+				],
+				[
+					1,
+					"Default",
+					4,
+					1
+				]
+			]
+,			[
+				[360, 876, 0, 720, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				14,
+				138,
+				[
+					[0]
+				],
+				[
+				[
+				]
+				],
+				[
+					"Rate us 5 star",
 					1,
 					"36pt GeosansLight",
 					"rgb(0,0,0)",
@@ -34991,7 +35520,7 @@ false,false,2596508113697225,false
 			8884897769229845,
 			[
 			[
-				25,
+				27,
 				cr.plugins_.Text.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -35004,7 +35533,7 @@ false,false,2596508113697225,false
 			],
 			[
 			[
-				25,
+				27,
 				cr.plugins_.Text.prototype.acts.SetWebFont,
 				null,
 				1201840936439848,
@@ -35814,6 +36343,65 @@ false,false,2596508113697225,false
 						]
 					]
 					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			8254760085687054,
+			[
+			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.OnTouchStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				4708924759281119,
+				false
+			]
+,			[
+				1,
+				cr.plugins_.Touch.prototype.cnds.IsTouchingObject,
+				null,
+				0,
+				false,
+				false,
+				false,
+				1029369521011046,
+				false
+				,[
+				[
+					4,
+					0
+				]
+				]
+			]
+			],
+			[
+			[
+				26,
+				cr.plugins_.PhonegapVibration.prototype.acts.Vibrate,
+				null,
+				5155891204381979,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"100"
+					]
+				]
+,				[
+					3,
+					1
 				]
 				]
 			]
@@ -39999,6 +40587,19 @@ false,false,274943258950527,false
 					]
 				]
 ,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					4558590100527385,
+					false
+					,[
+					[
+						3,
+						0
+					]
+					]
+				]
+,				[
 					18,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
@@ -40122,6 +40723,19 @@ false,false,274943258950527,false
 					]
 				]
 ,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					6613003901987358,
+					false
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+,				[
 					4,
 					cr.plugins_.Text.prototype.acts.SetVisible,
 					null,
@@ -40225,6 +40839,54 @@ false,false,274943258950527,false
 						[
 							3,
 							0
+						]
+						]
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					null,
+					2600880707747422,
+					[
+					[
+						18,
+						cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+						null,
+						0,
+						false,
+						false,
+						false,
+						4999335167923339,
+						false
+						,[
+						[
+							8,
+							0
+						]
+,						[
+							0,
+							[
+								0,
+								4
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						18,
+						cr.plugins_.Sprite.prototype.acts.SetVisible,
+						null,
+						8350835873946995,
+						false
+						,[
+						[
+							3,
+							1
 						]
 						]
 					]
@@ -40340,6 +41002,19 @@ false,false,274943258950527,false
 							0,
 							2
 						]
+					]
+					]
+				]
+,				[
+					14,
+					cr.plugins_.Text.prototype.acts.SetVisible,
+					null,
+					6145324995483564,
+					false
+					,[
+					[
+						3,
+						0
 					]
 					]
 				]
@@ -40471,6 +41146,54 @@ false,false,274943258950527,false
 						cr.plugins_.Sprite.prototype.acts.SetVisible,
 						null,
 						3464795223676559,
+						false
+						,[
+						[
+							3,
+							1
+						]
+						]
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					null,
+					9262780311780985,
+					[
+					[
+						18,
+						cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+						null,
+						0,
+						false,
+						false,
+						false,
+						197695723744777,
+						false
+						,[
+						[
+							8,
+							0
+						]
+,						[
+							0,
+							[
+								0,
+								4
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						18,
+						cr.plugins_.Sprite.prototype.acts.SetVisible,
+						null,
+						9811543220344221,
 						false
 						,[
 						[
@@ -41158,6 +41881,61 @@ false,false,274943258950527,false
 						[
 							2,
 							"https://www.facebook.com/fourdesks"
+						]
+					]
+,					[
+						3,
+						2
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				1164173582325112,
+				[
+				[
+					18,
+					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9622280146964326,
+					false
+					,[
+					[
+						8,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							4
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					17,
+					cr.plugins_.Browser.prototype.acts.GoToURL,
+					null,
+					1409619847619752,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"https://play.google.com/store/apps/details?id=com.fourdesks.touchthebubble"
 						]
 					]
 ,					[
@@ -42631,6 +43409,22 @@ false,false,274943258950527,false
 			],
 			[
 			[
+				25,
+				cr.plugins_.PhonegapShortcut.prototype.acts.CreateShortcut,
+				null,
+				7304132810401186,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"Touch The Bubble Shortcut Created"
+					]
+				]
+				]
+			]
+,			[
 				21,
 				cr.plugins_.TextBox.prototype.acts.SetFocus,
 				null,
@@ -43413,16 +44207,17 @@ false,false,274943258950527,false
 	true,
 	true,
 	true,
-	"1.0.0.1",
+	"1.0.1.3",
 	true,
 	false,
 	0,
 	1,
-	134,
+	139,
 	false,
 	true,
 	1,
 	true,
+	"TouchTheBubble",
 	[
 	]
 ];};
