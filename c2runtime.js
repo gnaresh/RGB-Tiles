@@ -17843,6 +17843,218 @@ cr.plugins_.PhonegapDialog = function(runtime)
 ;
 ;
 /*
+cr.plugins_.PhonegapLocalNotification = function(runtime)
+{
+	this.runtime = runtime;
+	Type
+		onCreate
+	Instance
+		onCreate
+		draw
+		drawGL
+	cnds
+	acts
+	exps
+};
+*/
+cr.plugins_.PhonegapLocalNotification = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.PhonegapLocalNotification.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+/*
+		var newScriptTag=document.createElement('script');
+		newScriptTag.setAttribute("type","text/javascript");
+		newScriptTag.setAttribute("src", "mylib.js");
+		document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		var scripts=document.getElementsByTagName("script");
+		var scriptExist=false;
+		for(var i=0;i<scripts.length;i++){
+			if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+				scriptExist=true;
+				break;
+			}
+		}
+		if(!scriptExist){
+			var newScriptTag=document.createElement("script");
+			newScriptTag.setAttribute("type","text/javascript");
+			newScriptTag.setAttribute("src", "cordova.js");
+			document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+		}
+*/
+		if(this.runtime.isBlackberry10 || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
+			var scripts=document.getElementsByTagName("script");
+			var scriptExist=false;
+			for(var i=0;i<scripts.length;i++){
+				if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
+					scriptExist=true;
+					break;
+				}
+			}
+			if(!scriptExist){
+				var newScriptTag=document.createElement("script");
+				newScriptTag.setAttribute("type","text/javascript");
+				newScriptTag.setAttribute("src", "cordova.js");
+				document.getElementsByTagName("head")[0].appendChild(newScriptTag);
+			}
+		}
+	};
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	instanceProto.onCreate = function()
+	{
+/*
+		var self=this;
+		window.addEventListener("resize", function () {//cranberrygame
+			self.runtime.trigger(cr.plugins_.PhonegapLocalNotification.prototype.cnds.TriggerCondition, self);
+		});
+*/
+		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		var self=this;
+		window["plugin"]["notification"]["local"]["ontrigger"] = function (id, state, json) {
+			self.runtime.trigger(cr.plugins_.PhonegapLocalNotification.prototype.cnds.OnLocalNotificationArrived, self);
+		};
+	};
+	instanceProto.draw = function(ctx)
+	{
+	};
+	instanceProto.drawGL = function (glw)
+	{
+	};
+/*
+	instanceProto.at = function (x)
+	{
+		return this.arr[x];
+	};
+	instanceProto.set = function (x, val)
+	{
+		this.arr[x] = val;
+	};
+*/
+	function Cnds() {};
+/*
+	Cnds.prototype.MyCondition = function (myparam)
+	{
+		return myparam >= 0;
+	};
+	Cnds.prototype.TriggerCondition = function ()
+	{
+		return true;
+	};
+*/
+	Cnds.prototype.OnLocalNotificationArrived = function ()
+	{
+		return true;
+	};
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+/*
+	Acts.prototype.MyAction = function (myparam)
+	{
+		alert(myparam);
+	};
+	Acts.prototype.TriggerAction = function ()
+	{
+		var self=this;
+		self.runtime.trigger(cr.plugins_.PhonegapLocalNotification.prototype.cnds.TriggerCondition, self);
+	};
+*/
+	Acts.prototype.SendLocalNotification = function (ID, title, message, sound, delay, repeat)
+	{
+		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		var date=new Date();
+		date=new Date(date.getTime() + 1000*delay);
+		var options = {
+			'id':      ID,
+			'title':   title,
+			'message': message,
+			'date': date
+		};
+		if (repeat!=0){
+			var repeatStr="secondly";// Either 'secondly', 'minutely', 'hourly', 'daily', 'weekly', 'monthly' or 'yearly'
+			if (repeat==1){
+				repeatStr="secondly";
+			}
+			else if (repeat==2){
+				repeatStr="minutely";
+			}
+			else if (repeat==3){
+				repeatStr="hourly";
+			}
+			else if (repeat==4){
+				repeatStr="daily";
+			}
+			else if (repeat==5){
+				repeatStr="weekly";
+			}
+			else if (repeat==6){
+				repeatStr="monthly";
+			}
+			else if (repeat==7){
+				repeatStr="yearly";
+			}
+			options["repeat"]=repeatStr;
+		}
+		if (sound==0){
+			options["sound"]=null;
+		}
+		window["plugin"]["notification"]["local"]["add"](options);
+	};
+	Acts.prototype.CancelLocalNotification = function (ID)
+	{
+		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		window["plugin"]["notification"]["local"]["cancel"](ID, function () {
+		});
+	};
+	Acts.prototype.CancelAllLocalNotifications = function ()
+	{
+		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+			return;
+		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
+			return;
+		window["plugin"]["notification"]["local"]["cancelAll"](function () {
+		});
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+/*
+	Exps.prototype.MyExpression = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
+	{
+		ret.set_int(1337);				// return our value
+	};
+	Exps.prototype.Text = function (ret, param) //cranberrygame
+	{
+		ret.set_string("Hello");		// for ef_return_string
+	};
+*/
+	pluginProto.exps = new Exps();
+}());
+;
+;
+/*
 cr.plugins_.PhonegapShortcut = function(runtime)
 {
 	this.runtime = runtime;
@@ -22015,7 +22227,31 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
+		cr.plugins_.PhonegapLocalNotification,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
 		cr.plugins_.Phonegap,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.PhonegapShortcut,
 		true,
 		false,
 		false,
@@ -22036,6 +22272,18 @@ cr.getProjectModel = function() { return [
 		true,
 		true,
 		true,
+		false
+	]
+,	[
+		cr.plugins_.PhonegapVibration,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
 		false
 	]
 ,	[
@@ -22063,23 +22311,11 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.PhonegapShortcut,
+		cr.plugins_.TextBox,
+		false,
 		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
-		cr.plugins_.PhonegapVibration,
 		true,
-		false,
-		false,
-		false,
+		true,
 		false,
 		false,
 		false,
@@ -22092,18 +22328,6 @@ cr.getProjectModel = function() { return [
 		false,
 		false,
 		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
-		cr.plugins_.TextBox,
-		false,
-		true,
-		true,
-		true,
 		false,
 		false,
 		false,
@@ -22714,6 +22938,24 @@ cr.getProjectModel = function() { return [
 	]
 ,	[
 		"t27",
+		cr.plugins_.PhonegapLocalNotification,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		4281349494282969,
+		[],
+		null
+		,[]
+	]
+,	[
+		"t28",
 		cr.plugins_.Text,
 		true,
 		[],
@@ -22731,7 +22973,7 @@ cr.getProjectModel = function() { return [
 	]
 	],
 	[
-		[27,11,8,13,14,5,3,4]
+		[28,11,8,13,14,5,3,4]
 	],
 	[
 	[
@@ -35520,7 +35762,7 @@ false,false,2596508113697225,false
 			8884897769229845,
 			[
 			[
-				27,
+				28,
 				cr.plugins_.Text.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -35533,7 +35775,7 @@ false,false,2596508113697225,false
 			],
 			[
 			[
-				27,
+				28,
 				cr.plugins_.Text.prototype.acts.SetWebFont,
 				null,
 				1201840936439848,
@@ -36407,6 +36649,457 @@ false,false,2596508113697225,false
 			]
 			]
 		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			4675073006265486,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.Every,
+				null,
+				0,
+				false,
+				false,
+				false,
+				8872379431112218,
+				false
+				,[
+				[
+					0,
+					[
+						1,
+						1
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				22,
+				cr.plugins_.AJAX.prototype.acts.Post,
+				null,
+				2537590523800678,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"getNotifications"
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"http://www.fourdesks.com/touchthebubble/getNotifications.php"
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						""
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"POST"
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			5398514493177123,
+			[
+			[
+				22,
+				cr.plugins_.AJAX.prototype.cnds.OnComplete,
+				null,
+				1,
+				false,
+				false,
+				false,
+				9095792715745672,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"getNotifications"
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.Compare,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2665734208215541,
+				false
+				,[
+				[
+					7,
+					[
+						20,
+						22,
+						cr.plugins_.AJAX.prototype.exps.LastData,
+						true,
+						null
+					]
+				]
+,				[
+					8,
+					1
+				]
+,				[
+					7,
+					[
+						2,
+						""
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.Compare,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2540159175539292,
+				false
+				,[
+				[
+					7,
+					[
+						20,
+						22,
+						cr.plugins_.AJAX.prototype.exps.LastData,
+						true,
+						null
+					]
+				]
+,				[
+					8,
+					1
+				]
+,				[
+					7,
+					[
+						20,
+						10,
+						cr.plugins_.WebStorage.prototype.exps.LocalValue,
+						true,
+						null
+						,[
+[
+							2,
+							"getNotifications"
+						]
+						]
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+				null,
+				4363380491606475,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"notification"
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						1
+					]
+				]
+				]
+			]
+,			[
+				27,
+				cr.plugins_.PhonegapLocalNotification.prototype.acts.SendLocalNotification,
+				null,
+				4264310845670884,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						1
+					]
+				]
+,				[
+					1,
+					[
+						19,
+						cr.system_object.prototype.exps.tokenat
+						,[
+[
+							20,
+							22,
+							cr.plugins_.AJAX.prototype.exps.LastData,
+							true,
+							null
+						]
+,[
+							0,
+							0
+						]
+,[
+							2,
+							"|"
+						]
+						]
+					]
+				]
+,				[
+					1,
+					[
+						19,
+						cr.system_object.prototype.exps.tokenat
+						,[
+[
+							20,
+							22,
+							cr.plugins_.AJAX.prototype.exps.LastData,
+							true,
+							null
+						]
+,[
+							0,
+							1
+						]
+,[
+							2,
+							"|"
+						]
+						]
+					]
+				]
+,				[
+					3,
+					1
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+,				[
+					3,
+					0
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			6557275360349154,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.OnLayoutStart,
+				null,
+				1,
+				false,
+				false,
+				false,
+				8484199176457114,
+				false
+			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
+				null,
+				0,
+				false,
+				false,
+				false,
+				5656040418224441,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"notification"
+					]
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					0,
+					[
+						0,
+						1
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.Compare,
+				null,
+				0,
+				false,
+				false,
+				false,
+				2961942411208338,
+				false
+				,[
+				[
+					7,
+					[
+						19,
+						cr.system_object.prototype.exps.tokenat
+						,[
+[
+							20,
+							10,
+							cr.plugins_.WebStorage.prototype.exps.LocalValue,
+							true,
+							null
+							,[
+[
+								2,
+								"getNotifications"
+							]
+							]
+						]
+,[
+							0,
+							2
+						]
+,[
+							2,
+							"|"
+						]
+						]
+					]
+				]
+,				[
+					8,
+					1
+				]
+,				[
+					7,
+					[
+						2,
+						""
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+				null,
+				7922316287881759,
+				false
+				,[
+				[
+					1,
+					[
+						2,
+						"notification"
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				17,
+				cr.plugins_.Browser.prototype.acts.GoToURL,
+				null,
+				9307679129722601,
+				false
+				,[
+				[
+					1,
+					[
+						19,
+						cr.system_object.prototype.exps.tokenat
+						,[
+[
+							20,
+							10,
+							cr.plugins_.WebStorage.prototype.exps.LocalValue,
+							true,
+							null
+							,[
+[
+								2,
+								"getNotifications"
+							]
+							]
+						]
+,[
+							0,
+							2
+						]
+,[
+							2,
+							"|"
+						]
+						]
+					]
+				]
+,				[
+					3,
+					0
+				]
+				]
+			]
+			]
+		]
 		]
 	]
 ,	[
@@ -37131,6 +37824,114 @@ false,false,5068828181573646,false
 						[
 							0,
 							0
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				5303175182845488,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					true,
+					false,
+					8898963270433633,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"getNotifications"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					4960079701189881,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"getNotifications"
+						]
+					]
+,					[
+						7,
+						[
+							2,
+							"Play game now | It feels cold, let's play. |"
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				476589899525529,
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.cnds.LocalStorageExists,
+					null,
+					0,
+					false,
+					true,
+					false,
+					1255766074311733,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"notifications"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					10,
+					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
+					null,
+					3988639642871917,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"notifications"
+						]
+					]
+,					[
+						7,
+						[
+							2,
+							"0"
 						]
 					]
 					]
