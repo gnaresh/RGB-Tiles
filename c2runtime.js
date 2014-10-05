@@ -17612,449 +17612,6 @@ cr.plugins_.Phonegap = function(runtime)
 ;
 ;
 /*
-cr.plugins_.PhonegapDialog = function(runtime)
-{
-	this.runtime = runtime;
-	Type
-		onCreate
-	Instance
-		onCreate
-		draw
-		drawGL
-	cnds
-	acts
-	exps
-};
-*/
-cr.plugins_.PhonegapDialog = function(runtime)
-{
-	this.runtime = runtime;
-};
-(function ()
-{
-	var pluginProto = cr.plugins_.PhonegapDialog.prototype;
-	pluginProto.Type = function(plugin)
-	{
-		this.plugin = plugin;
-		this.runtime = plugin.runtime;
-	};
-	var typeProto = pluginProto.Type.prototype;
-	typeProto.onCreate = function()
-	{
-/*
-		var newScriptTag=document.createElement('script');
-		newScriptTag.setAttribute("type","text/javascript");
-		newScriptTag.setAttribute("src", "mylib.js");
-		document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-		var scripts=document.getElementsByTagName("script");
-		var scriptExist=false;
-		for(var i=0;i<scripts.length;i++){
-			if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
-				scriptExist=true;
-				break;
-			}
-		}
-		if(!scriptExist){
-			var newScriptTag=document.createElement("script");
-			newScriptTag.setAttribute("type","text/javascript");
-			newScriptTag.setAttribute("src", "cordova.js");
-			document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-		}
-*/
-		if(this.runtime.isBlackberry10 || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
-			var scripts=document.getElementsByTagName("script");
-			var scriptExist=false;
-			for(var i=0;i<scripts.length;i++){
-				if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
-					scriptExist=true;
-					break;
-				}
-			}
-			if(!scriptExist){
-				var newScriptTag=document.createElement("script");
-				newScriptTag.setAttribute("type","text/javascript");
-				newScriptTag.setAttribute("src", "cordova.js");
-				document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-			}
-		}
-	};
-	pluginProto.Instance = function(type)
-	{
-		this.type = type;
-		this.runtime = type.runtime;
-	};
-	var instanceProto = pluginProto.Instance.prototype;
-	instanceProto.onCreate = function()
-	{
-/*
-		var self=this;
-		window.addEventListener("resize", function () {//cranberrygame
-			self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.TriggerCondition, self);
-		});
-*/
-		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		this.title = null;
-		this.PromptInput = null;
-	};
-	instanceProto.draw = function(ctx)
-	{
-	};
-	instanceProto.drawGL = function (glw)
-	{
-	};
-/*
-	instanceProto.at = function (x)
-	{
-		return this.arr[x];
-	};
-	instanceProto.set = function (x, val)
-	{
-		this.arr[x] = val;
-	};
-*/
-	function Cnds() {};
-/*
-	Cnds.prototype.MyCondition = function (myparam)
-	{
-		return myparam >= 0;
-	};
-	Cnds.prototype.TriggerCondition = function ()
-	{
-		return true;
-	};
-*/
-	Cnds.prototype.ConfirmYesClicked = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.ConfirmNoClicked = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.PromptOkClicked = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.PromptCancelClicked = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.TitleIs = function (title_)
-	{
-		return this.title == title_;
-	};
-	pluginProto.cnds = new Cnds();
-	function Acts() {};
-	Acts.prototype.Confirm = function (title, message)
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		var self=this;
-		navigator["notification"]["confirm"](
-			message,
-			function (buttonIndex){
-				if (buttonIndex==1)
-				{
-					self.title = title;
-					self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.ConfirmYesClicked, self);
-				}
-				else if (buttonIndex==2) {
-					self.title = title;
-					self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.ConfirmNoClicked, self);
-				};
-			},
-			title,
-			['Yes','No']
-		);
-	};
-	Acts.prototype.Prompt = function (title,message)
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		var self=this;
-		function onPrompt(results) {
-			alert("You selected button number " + results.buttonIndex + " and entered " + results.input1);
-			if (results.buttonIndex==1){
-				self.title = title;
-				self.PromptInput=results.input1;
-				self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.PromptOkClicked, self);
-			}
-			else if (results.buttonIndex==2){
-				self.title = title;
-				self.runtime.trigger(cr.plugins_.PhonegapDialog.prototype.cnds.PromptCancelClicked, self);
-			}
-		}
-		navigator["notification"]["prompt"](
-			message,  // message
-			onPrompt,                  // callback to invoke
-			title,            // title
-			['Ok','Cancel'],             // buttonLabels
-			''                 // defaultText
-		);
-	}
-	Acts.prototype.Beep = function (count)
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		navigator["notification"]["beep"](count);
-	}
-	Acts.prototype.Alert = function (title, message)
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isBlackberry10 || this.runtime.isiOS || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		function alertDismissed() {
-		}
-		navigator["notification"]["alert"](
-			message,  // message
-			alertDismissed,         // callback
-			title,            // title
-			'OK'                  // buttonName
-		);
-	};
-	pluginProto.acts = new Acts();
-	function Exps() {};
-/*
-	Exps.prototype.MyExpression = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
-	{
-		ret.set_int(1337);				// return our value
-	};
-	Exps.prototype.Text = function (ret, param) //cranberrygame
-	{
-		ret.set_string("Hello");		// for ef_return_string
-	};
-*/
-	Exps.prototype.PromptInput = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
-	{
-		ret.set_string(this.PromptInput);				// for ef_return_string
-	};
-	pluginProto.exps = new Exps();
-}());
-;
-;
-/*
-cr.plugins_.PhonegapLocalNotification = function(runtime)
-{
-	this.runtime = runtime;
-	Type
-		onCreate
-	Instance
-		onCreate
-		draw
-		drawGL
-	cnds
-	acts
-	exps
-};
-*/
-cr.plugins_.PhonegapLocalNotification = function(runtime)
-{
-	this.runtime = runtime;
-};
-(function ()
-{
-	var pluginProto = cr.plugins_.PhonegapLocalNotification.prototype;
-	pluginProto.Type = function(plugin)
-	{
-		this.plugin = plugin;
-		this.runtime = plugin.runtime;
-	};
-	var typeProto = pluginProto.Type.prototype;
-	typeProto.onCreate = function()
-	{
-/*
-		var newScriptTag=document.createElement('script');
-		newScriptTag.setAttribute("type","text/javascript");
-		newScriptTag.setAttribute("src", "mylib.js");
-		document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-		var scripts=document.getElementsByTagName("script");
-		var scriptExist=false;
-		for(var i=0;i<scripts.length;i++){
-			if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
-				scriptExist=true;
-				break;
-			}
-		}
-		if(!scriptExist){
-			var newScriptTag=document.createElement("script");
-			newScriptTag.setAttribute("type","text/javascript");
-			newScriptTag.setAttribute("src", "cordova.js");
-			document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-		}
-*/
-		if(this.runtime.isBlackberry10 || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
-			var scripts=document.getElementsByTagName("script");
-			var scriptExist=false;
-			for(var i=0;i<scripts.length;i++){
-				if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
-					scriptExist=true;
-					break;
-				}
-			}
-			if(!scriptExist){
-				var newScriptTag=document.createElement("script");
-				newScriptTag.setAttribute("type","text/javascript");
-				newScriptTag.setAttribute("src", "cordova.js");
-				document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-			}
-		}
-	};
-	pluginProto.Instance = function(type)
-	{
-		this.type = type;
-		this.runtime = type.runtime;
-	};
-	var instanceProto = pluginProto.Instance.prototype;
-	instanceProto.onCreate = function()
-	{
-/*
-		var self=this;
-		window.addEventListener("resize", function () {//cranberrygame
-			self.runtime.trigger(cr.plugins_.PhonegapLocalNotification.prototype.cnds.TriggerCondition, self);
-		});
-*/
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		var self=this;
-		window["plugin"]["notification"]["local"]["ontrigger"] = function (id, state, json) {
-			self.runtime.trigger(cr.plugins_.PhonegapLocalNotification.prototype.cnds.OnLocalNotificationArrived, self);
-		};
-	};
-	instanceProto.draw = function(ctx)
-	{
-	};
-	instanceProto.drawGL = function (glw)
-	{
-	};
-/*
-	instanceProto.at = function (x)
-	{
-		return this.arr[x];
-	};
-	instanceProto.set = function (x, val)
-	{
-		this.arr[x] = val;
-	};
-*/
-	function Cnds() {};
-/*
-	Cnds.prototype.MyCondition = function (myparam)
-	{
-		return myparam >= 0;
-	};
-	Cnds.prototype.TriggerCondition = function ()
-	{
-		return true;
-	};
-*/
-	Cnds.prototype.OnLocalNotificationArrived = function ()
-	{
-		return true;
-	};
-	pluginProto.cnds = new Cnds();
-	function Acts() {};
-/*
-	Acts.prototype.MyAction = function (myparam)
-	{
-		alert(myparam);
-	};
-	Acts.prototype.TriggerAction = function ()
-	{
-		var self=this;
-		self.runtime.trigger(cr.plugins_.PhonegapLocalNotification.prototype.cnds.TriggerCondition, self);
-	};
-*/
-	Acts.prototype.SendLocalNotification = function (ID, title, message, sound, delay, repeat)
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		var date=new Date();
-		date=new Date(date.getTime() + 1000*delay);
-		var options = {
-			'id':      ID,
-			'title':   title,
-			'message': message,
-			'date': date
-		};
-		if (repeat!=0){
-			var repeatStr="secondly";// Either 'secondly', 'minutely', 'hourly', 'daily', 'weekly', 'monthly' or 'yearly'
-			if (repeat==1){
-				repeatStr="secondly";
-			}
-			else if (repeat==2){
-				repeatStr="minutely";
-			}
-			else if (repeat==3){
-				repeatStr="hourly";
-			}
-			else if (repeat==4){
-				repeatStr="daily";
-			}
-			else if (repeat==5){
-				repeatStr="weekly";
-			}
-			else if (repeat==6){
-				repeatStr="monthly";
-			}
-			else if (repeat==7){
-				repeatStr="yearly";
-			}
-			options["repeat"]=repeatStr;
-		}
-		if (sound==0){
-			options["sound"]=null;
-		}
-		window["plugin"]["notification"]["local"]["add"](options);
-	};
-	Acts.prototype.CancelLocalNotification = function (ID)
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		window["plugin"]["notification"]["local"]["cancel"](ID, function () {
-		});
-	};
-	Acts.prototype.CancelAllLocalNotifications = function ()
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-		if (this.runtime.isAndroid && navigator.platform == 'Win32')//crosswalk emulator
-			return;
-		window["plugin"]["notification"]["local"]["cancelAll"](function () {
-		});
-	};
-	pluginProto.acts = new Acts();
-	function Exps() {};
-/*
-	Exps.prototype.MyExpression = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
-	{
-		ret.set_int(1337);				// return our value
-	};
-	Exps.prototype.Text = function (ret, param) //cranberrygame
-	{
-		ret.set_string("Hello");		// for ef_return_string
-	};
-*/
-	pluginProto.exps = new Exps();
-}());
-;
-;
-/*
 cr.plugins_.PhonegapShortcut = function(runtime)
 {
 	this.runtime = runtime;
@@ -21856,6 +21413,170 @@ cr.behaviors.Flash = function(runtime)
 }());
 ;
 ;
+cr.behaviors.Pin = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var behaviorProto = cr.behaviors.Pin.prototype;
+	behaviorProto.Type = function(behavior, objtype)
+	{
+		this.behavior = behavior;
+		this.objtype = objtype;
+		this.runtime = behavior.runtime;
+	};
+	var behtypeProto = behaviorProto.Type.prototype;
+	behtypeProto.onCreate = function()
+	{
+	};
+	behaviorProto.Instance = function(type, inst)
+	{
+		this.type = type;
+		this.behavior = type.behavior;
+		this.inst = inst;				// associated object instance to modify
+		this.runtime = type.runtime;
+	};
+	var behinstProto = behaviorProto.Instance.prototype;
+	behinstProto.onCreate = function()
+	{
+		this.pinObject = null;
+		this.pinObjectUid = -1;		// for loading
+		this.pinAngle = 0;
+		this.pinDist = 0;
+		this.myStartAngle = 0;
+		this.theirStartAngle = 0;
+		this.lastKnownAngle = 0;
+		this.mode = 0;				// 0 = position & angle; 1 = position; 2 = angle; 3 = rope; 4 = bar
+		var self = this;
+		if (!this.recycled)
+		{
+			this.myDestroyCallback = (function(inst) {
+													self.onInstanceDestroyed(inst);
+												});
+		}
+		this.runtime.addDestroyCallback(this.myDestroyCallback);
+	};
+	behinstProto.saveToJSON = function ()
+	{
+		return {
+			"uid": this.pinObject ? this.pinObject.uid : -1,
+			"pa": this.pinAngle,
+			"pd": this.pinDist,
+			"msa": this.myStartAngle,
+			"tsa": this.theirStartAngle,
+			"lka": this.lastKnownAngle,
+			"m": this.mode
+		};
+	};
+	behinstProto.loadFromJSON = function (o)
+	{
+		this.pinObjectUid = o["uid"];		// wait until afterLoad to look up
+		this.pinAngle = o["pa"];
+		this.pinDist = o["pd"];
+		this.myStartAngle = o["msa"];
+		this.theirStartAngle = o["tsa"];
+		this.lastKnownAngle = o["lka"];
+		this.mode = o["m"];
+	};
+	behinstProto.afterLoad = function ()
+	{
+		if (this.pinObjectUid === -1)
+			this.pinObject = null;
+		else
+		{
+			this.pinObject = this.runtime.getObjectByUID(this.pinObjectUid);
+;
+		}
+		this.pinObjectUid = -1;
+	};
+	behinstProto.onInstanceDestroyed = function (inst)
+	{
+		if (this.pinObject == inst)
+			this.pinObject = null;
+	};
+	behinstProto.onDestroy = function()
+	{
+		this.pinObject = null;
+		this.runtime.removeDestroyCallback(this.myDestroyCallback);
+	};
+	behinstProto.tick = function ()
+	{
+	};
+	behinstProto.tick2 = function ()
+	{
+		if (!this.pinObject)
+			return;
+		if (this.lastKnownAngle !== this.inst.angle)
+			this.myStartAngle = cr.clamp_angle(this.myStartAngle + (this.inst.angle - this.lastKnownAngle));
+		var newx = this.inst.x;
+		var newy = this.inst.y;
+		if (this.mode === 3 || this.mode === 4)		// rope mode or bar mode
+		{
+			var dist = cr.distanceTo(this.inst.x, this.inst.y, this.pinObject.x, this.pinObject.y);
+			if ((dist > this.pinDist) || (this.mode === 4 && dist < this.pinDist))
+			{
+				var a = cr.angleTo(this.pinObject.x, this.pinObject.y, this.inst.x, this.inst.y);
+				newx = this.pinObject.x + Math.cos(a) * this.pinDist;
+				newy = this.pinObject.y + Math.sin(a) * this.pinDist;
+			}
+		}
+		else
+		{
+			newx = this.pinObject.x + Math.cos(this.pinObject.angle + this.pinAngle) * this.pinDist;
+			newy = this.pinObject.y + Math.sin(this.pinObject.angle + this.pinAngle) * this.pinDist;
+		}
+		var newangle = cr.clamp_angle(this.myStartAngle + (this.pinObject.angle - this.theirStartAngle));
+		this.lastKnownAngle = newangle;
+		if ((this.mode === 0 || this.mode === 1 || this.mode === 3 || this.mode === 4)
+			&& (this.inst.x !== newx || this.inst.y !== newy))
+		{
+			this.inst.x = newx;
+			this.inst.y = newy;
+			this.inst.set_bbox_changed();
+		}
+		if ((this.mode === 0 || this.mode === 2) && (this.inst.angle !== newangle))
+		{
+			this.inst.angle = newangle;
+			this.inst.set_bbox_changed();
+		}
+	};
+	function Cnds() {};
+	Cnds.prototype.IsPinned = function ()
+	{
+		return !!this.pinObject;
+	};
+	behaviorProto.cnds = new Cnds();
+	function Acts() {};
+	Acts.prototype.Pin = function (obj, mode_)
+	{
+		if (!obj)
+			return;
+		var otherinst = obj.getFirstPicked(this.inst);
+		if (!otherinst)
+			return;
+		this.pinObject = otherinst;
+		this.pinAngle = cr.angleTo(otherinst.x, otherinst.y, this.inst.x, this.inst.y) - otherinst.angle;
+		this.pinDist = cr.distanceTo(otherinst.x, otherinst.y, this.inst.x, this.inst.y);
+		this.myStartAngle = this.inst.angle;
+		this.lastKnownAngle = this.inst.angle;
+		this.theirStartAngle = otherinst.angle;
+		this.mode = mode_;
+	};
+	Acts.prototype.Unpin = function ()
+	{
+		this.pinObject = null;
+	};
+	behaviorProto.acts = new Acts();
+	function Exps() {};
+	Exps.prototype.PinnedUID = function (ret)
+	{
+		ret.set_int(this.pinObject ? this.pinObject.uid : -1);
+	};
+	behaviorProto.exps = new Exps();
+}());
+;
+;
 cr.behaviors.Timer = function(runtime)
 {
 	this.runtime = runtime;
@@ -22045,7 +21766,7 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.Browser,
+		cr.plugins_.WebStorage,
 		true,
 		false,
 		false,
@@ -22057,7 +21778,7 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.PhonegapLocalNotification,
+		cr.plugins_.Browser,
 		true,
 		false,
 		false,
@@ -22081,31 +21802,19 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
+		cr.plugins_.TextBox,
+		false,
+		true,
+		true,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
 		cr.plugins_.PhonegapShortcut,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
-		cr.plugins_.Text,
-		false,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		false
-	]
-,	[
-		cr.plugins_.PhonegapDialog,
 		true,
 		false,
 		false,
@@ -22129,31 +21838,19 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.TextBox,
+		cr.plugins_.Text,
 		false,
 		true,
 		true,
 		true,
-		false,
-		false,
-		false,
-		false,
+		true,
+		true,
+		true,
+		true,
 		false
 	]
 ,	[
 		cr.plugins_.Touch,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
-		cr.plugins_.WebStorage,
 		true,
 		false,
 		false,
@@ -22297,11 +21994,16 @@ cr.getProjectModel = function() { return [
 		cr.plugins_.Text,
 		false,
 		[],
-		0,
+		1,
 		0,
 		null,
 		null,
 		[
+		[
+			"Pin",
+			cr.behaviors.Pin,
+			3810005112242166
+		]
 		],
 		false,
 		false,
@@ -22600,24 +22302,6 @@ cr.getProjectModel = function() { return [
 	]
 ,	[
 		"t19",
-		cr.plugins_.PhonegapDialog,
-		false,
-		[],
-		0,
-		0,
-		null,
-		null,
-		[
-		],
-		false,
-		false,
-		345543209339356,
-		[],
-		null
-		,[]
-	]
-,	[
-		"t20",
 		cr.plugins_.Phonegap,
 		false,
 		[],
@@ -22635,7 +22319,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t21",
+		"t20",
 		cr.plugins_.TextBox,
 		false,
 		[],
@@ -22652,7 +22336,7 @@ cr.getProjectModel = function() { return [
 		null
 	]
 ,	[
-		"t22",
+		"t21",
 		cr.plugins_.AJAX,
 		false,
 		[],
@@ -22670,7 +22354,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t23",
+		"t22",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -22687,7 +22371,7 @@ cr.getProjectModel = function() { return [
 		null
 	]
 ,	[
-		"t24",
+		"t23",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -22719,7 +22403,7 @@ cr.getProjectModel = function() { return [
 		null
 	]
 ,	[
-		"t25",
+		"t24",
 		cr.plugins_.PhonegapShortcut,
 		false,
 		[],
@@ -22737,25 +22421,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t26",
-		cr.plugins_.PhonegapLocalNotification,
-		false,
-		[],
-		0,
-		0,
-		null,
-		null,
-		[
-		],
-		false,
-		false,
-		4281349494282969,
-		[],
-		null
-		,[]
-	]
-,	[
-		"t27",
+		"t25",
 		cr.plugins_.Text,
 		true,
 		[],
@@ -22773,7 +22439,7 @@ cr.getProjectModel = function() { return [
 	]
 	],
 	[
-		[27,11,8,13,14,5,3,4]
+		[25,11,8,13,14,5,3,4]
 	],
 	[
 	[
@@ -23150,6 +22816,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"Score/Time",
@@ -23239,7 +22907,7 @@ cr.getProjectModel = function() { return [
 			[
 			[
 				[491, 552, 0, 175, 175, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				24,
+				23,
 				85,
 				[
 				],
@@ -23254,7 +22922,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[361, 752, 0, 175, 175, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				24,
+				23,
 				130,
 				[
 				],
@@ -23269,7 +22937,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[231, 552, 0, 175, 175, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				24,
+				23,
 				131,
 				[
 				],
@@ -23317,7 +22985,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				null,
-				23,
+				22,
 				129,
 				[
 				],
@@ -24000,6 +23668,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"Score",
@@ -24020,6 +23690,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"Time",
@@ -24040,6 +23712,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"Avg",
@@ -24377,6 +24051,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"My Last 10",
@@ -24397,6 +24073,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"My Top 10",
@@ -24417,6 +24095,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"Global",
@@ -24998,6 +24678,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"Hello",
@@ -25018,6 +24700,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"Follow",
@@ -25038,6 +24722,8 @@ cr.getProjectModel = function() { return [
 				[
 				],
 				[
+				[
+				]
 				],
 				[
 					"Wink",
@@ -25386,7 +25072,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[60, 550, 0, 600, 100, 0, 0, 1, 0, 0, 0, 0, []],
-				21,
+				20,
 				121,
 				[
 				],
@@ -29992,8 +29678,8 @@ false,false,130635249387532,false
 			3760259176058504,
 			[
 			[
-				20,
-				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				17,
+				cr.plugins_.Browser.prototype.cnds.OnBackButton,
 				null,
 				1,
 				false,
@@ -30158,8 +29844,8 @@ false,false,130635249387532,false
 			7023477360157905,
 			[
 			[
-				20,
-				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				17,
+				cr.plugins_.Browser.prototype.cnds.OnBackButton,
 				null,
 				1,
 				false,
@@ -30640,7 +30326,7 @@ false,false,130635249387532,false
 				,[
 				[
 					4,
-					24
+					23
 				]
 				]
 			]
@@ -30684,7 +30370,7 @@ false,false,130635249387532,false
 				140254995037322,
 				[
 				[
-					24,
+					23,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -30739,7 +30425,7 @@ false,false,130635249387532,false
 				7067203149256707,
 				[
 				[
-					24,
+					23,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -30870,7 +30556,7 @@ false,false,130635249387532,false
 				5771509425617723,
 				[
 				[
-					24,
+					23,
 					cr.plugins_.Sprite.prototype.cnds.CompareFrame,
 					null,
 					0,
@@ -31597,8 +31283,8 @@ false,false,4857271161516644,false
 			4406916183646371,
 			[
 			[
-				20,
-				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				17,
+				cr.plugins_.Browser.prototype.cnds.OnBackButton,
 				null,
 				1,
 				false,
@@ -31610,6 +31296,13 @@ false,false,4857271161516644,false
 			],
 			[
 			[
+				-1,
+				cr.system_object.prototype.acts.ResetGlobals,
+				null,
+				2603166809160515,
+				false
+			]
+,			[
 				-1,
 				cr.system_object.prototype.acts.GoToLayout,
 				null,
@@ -31919,7 +31612,7 @@ false,false,2596508113697225,false
 					]
 				]
 ,				[
-					22,
+					21,
 					cr.plugins_.AJAX.prototype.acts.Post,
 					null,
 					6896816453707689,
@@ -32110,7 +31803,7 @@ false,false,2596508113697225,false
 			6689859802506159,
 			[
 			[
-				22,
+				21,
 				cr.plugins_.AJAX.prototype.cnds.OnComplete,
 				null,
 				1,
@@ -32132,7 +31825,7 @@ false,false,2596508113697225,false
 			],
 			[
 			[
-				22,
+				21,
 				cr.plugins_.AJAX.prototype.acts.Request,
 				null,
 				7040649270181912,
@@ -32164,7 +31857,7 @@ false,false,2596508113697225,false
 			4215413399686941,
 			[
 			[
-				22,
+				21,
 				cr.plugins_.AJAX.prototype.cnds.OnComplete,
 				null,
 				1,
@@ -32213,7 +31906,7 @@ false,false,2596508113697225,false
 							,[
 [
 								20,
-								22,
+								21,
 								cr.plugins_.AJAX.prototype.exps.LastData,
 								true,
 								null
@@ -32254,7 +31947,7 @@ false,false,2596508113697225,false
 						7,
 						[
 							20,
-							22,
+							21,
 							cr.plugins_.AJAX.prototype.exps.LastData,
 							true,
 							null
@@ -34278,8 +33971,8 @@ false,false,2596508113697225,false
 			9961449587629747,
 			[
 			[
-				20,
-				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				17,
+				cr.plugins_.Browser.prototype.cnds.OnBackButton,
 				null,
 				1,
 				false,
@@ -35593,7 +35286,7 @@ false,false,2596508113697225,false
 			8884897769229845,
 			[
 			[
-				27,
+				25,
 				cr.plugins_.Text.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -35606,7 +35299,7 @@ false,false,2596508113697225,false
 			],
 			[
 			[
-				27,
+				25,
 				cr.plugins_.Text.prototype.acts.SetWebFont,
 				null,
 				1201840936439848,
@@ -36476,463 +36169,19 @@ false,false,2596508113697225,false
 			]
 			]
 		]
-,		[
-			0,
-			null,
-			false,
-			null,
-			4675073006265486,
-			[
-			[
-				-1,
-				cr.system_object.prototype.cnds.Every,
-				null,
-				0,
-				false,
-				false,
-				false,
-				8872379431112218,
-				false
-				,[
-				[
-					0,
-					[
-						1,
-						1
-					]
-				]
-				]
-			]
-			],
-			[
-			[
-				22,
-				cr.plugins_.AJAX.prototype.acts.Post,
-				null,
-				2537590523800678,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"getNotifications"
-					]
-				]
-,				[
-					1,
-					[
-						2,
-						"http://www.fourdesks.com/touchthebubble/getNotifications.php"
-					]
-				]
-,				[
-					1,
-					[
-						2,
-						""
-					]
-				]
-,				[
-					1,
-					[
-						2,
-						"POST"
-					]
-				]
-				]
-			]
-			]
-		]
-,		[
-			0,
-			null,
-			false,
-			null,
-			5398514493177123,
-			[
-			[
-				22,
-				cr.plugins_.AJAX.prototype.cnds.OnComplete,
-				null,
-				1,
-				false,
-				false,
-				false,
-				9095792715745672,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"getNotifications"
-					]
-				]
-				]
-			]
-,			[
-				-1,
-				cr.system_object.prototype.cnds.Compare,
-				null,
-				0,
-				false,
-				false,
-				false,
-				2665734208215541,
-				false
-				,[
-				[
-					7,
-					[
-						20,
-						22,
-						cr.plugins_.AJAX.prototype.exps.LastData,
-						true,
-						null
-					]
-				]
-,				[
-					8,
-					1
-				]
-,				[
-					7,
-					[
-						2,
-						""
-					]
-				]
-				]
-			]
-,			[
-				-1,
-				cr.system_object.prototype.cnds.Compare,
-				null,
-				0,
-				false,
-				false,
-				false,
-				2540159175539292,
-				false
-				,[
-				[
-					7,
-					[
-						20,
-						22,
-						cr.plugins_.AJAX.prototype.exps.LastData,
-						true,
-						null
-					]
-				]
-,				[
-					8,
-					1
-				]
-,				[
-					7,
-					[
-						20,
-						10,
-						cr.plugins_.WebStorage.prototype.exps.LocalValue,
-						true,
-						null
-						,[
-[
-							2,
-							"getNotifications"
-						]
-						]
-					]
-				]
-				]
-			]
-			],
-			[
-			[
-				10,
-				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
-				null,
-				4363380491606475,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"notification"
-					]
-				]
-,				[
-					7,
-					[
-						0,
-						1
-					]
-				]
-				]
-			]
-,			[
-				26,
-				cr.plugins_.PhonegapLocalNotification.prototype.acts.SendLocalNotification,
-				null,
-				4264310845670884,
-				false
-				,[
-				[
-					0,
-					[
-						0,
-						1
-					]
-				]
-,				[
-					1,
-					[
-						19,
-						cr.system_object.prototype.exps.tokenat
-						,[
-[
-							20,
-							22,
-							cr.plugins_.AJAX.prototype.exps.LastData,
-							true,
-							null
-						]
-,[
-							0,
-							0
-						]
-,[
-							2,
-							"|"
-						]
-						]
-					]
-				]
-,				[
-					1,
-					[
-						19,
-						cr.system_object.prototype.exps.tokenat
-						,[
-[
-							20,
-							22,
-							cr.plugins_.AJAX.prototype.exps.LastData,
-							true,
-							null
-						]
-,[
-							0,
-							1
-						]
-,[
-							2,
-							"|"
-						]
-						]
-					]
-				]
-,				[
-					3,
-					1
-				]
-,				[
-					0,
-					[
-						0,
-						0
-					]
-				]
-,				[
-					3,
-					0
-				]
-				]
-			]
-			]
-		]
-,		[
-			0,
-			null,
-			false,
-			null,
-			6557275360349154,
-			[
-			[
-				-1,
-				cr.system_object.prototype.cnds.OnLayoutStart,
-				null,
-				1,
-				false,
-				false,
-				false,
-				8484199176457114,
-				false
-			]
-,			[
-				10,
-				cr.plugins_.WebStorage.prototype.cnds.CompareKeyNumber,
-				null,
-				0,
-				false,
-				false,
-				false,
-				5656040418224441,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"notification"
-					]
-				]
-,				[
-					8,
-					0
-				]
-,				[
-					0,
-					[
-						0,
-						1
-					]
-				]
-				]
-			]
-,			[
-				-1,
-				cr.system_object.prototype.cnds.Compare,
-				null,
-				0,
-				false,
-				false,
-				false,
-				2961942411208338,
-				false
-				,[
-				[
-					7,
-					[
-						19,
-						cr.system_object.prototype.exps.tokenat
-						,[
-[
-							20,
-							10,
-							cr.plugins_.WebStorage.prototype.exps.LocalValue,
-							true,
-							null
-							,[
-[
-								2,
-								"getNotifications"
-							]
-							]
-						]
-,[
-							0,
-							2
-						]
-,[
-							2,
-							"|"
-						]
-						]
-					]
-				]
-,				[
-					8,
-					1
-				]
-,				[
-					7,
-					[
-						2,
-						""
-					]
-				]
-				]
-			]
-			],
-			[
-			[
-				10,
-				cr.plugins_.WebStorage.prototype.acts.StoreLocal,
-				null,
-				7922316287881759,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"notification"
-					]
-				]
-,				[
-					7,
-					[
-						0,
-						0
-					]
-				]
-				]
-			]
-,			[
-				17,
-				cr.plugins_.Browser.prototype.acts.GoToURL,
-				null,
-				9307679129722601,
-				false
-				,[
-				[
-					1,
-					[
-						19,
-						cr.system_object.prototype.exps.tokenat
-						,[
-[
-							20,
-							10,
-							cr.plugins_.WebStorage.prototype.exps.LocalValue,
-							true,
-							null
-							,[
-[
-								2,
-								"getNotifications"
-							]
-							]
-						]
-,[
-							0,
-							2
-						]
-,[
-							2,
-							"|"
-						]
-						]
-					]
-				]
-,				[
-					3,
-					0
-				]
-				]
-			]
-			]
-		]
 		]
 	]
 ,	[
 		"Menu",
 		[
 		[
+			1,
+			"exit",
+			0,
+			0,
+false,false,9913300358861621,false
+		]
+,		[
 			1,
 			"touchType",
 			0,
@@ -37126,7 +36375,7 @@ false,false,5068828181573646,false
 				]
 			]
 ,			[
-				22,
+				21,
 				cr.plugins_.AJAX.prototype.acts.Post,
 				null,
 				5676470619331602,
@@ -37764,7 +37013,7 @@ false,false,5068828181573646,false
 						1,
 						[
 							2,
-							"notifications"
+							"notification"
 						]
 					]
 					]
@@ -37782,7 +37031,7 @@ false,false,5068828181573646,false
 						1,
 						[
 							2,
-							"notifications"
+							"notification"
 						]
 					]
 ,					[
@@ -38876,8 +38125,8 @@ false,false,5068828181573646,false
 			4896963974408381,
 			[
 			[
-				20,
-				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				17,
+				cr.plugins_.Browser.prototype.cnds.OnBackButton,
 				null,
 				1,
 				false,
@@ -38889,24 +38138,21 @@ false,false,5068828181573646,false
 			],
 			[
 			[
-				19,
-				cr.plugins_.PhonegapDialog.prototype.acts.Confirm,
+				-1,
+				cr.system_object.prototype.acts.AddVar,
 				null,
-				1003404360179183,
+				9861087267240407,
 				false
 				,[
 				[
-					1,
-					[
-						2,
-						"Exit"
-					]
+					11,
+					"exit"
 				]
 ,				[
-					1,
+					7,
 					[
-						2,
-						"Are you sure you want to exit?"
+						0,
+						1
 					]
 				]
 				]
@@ -38918,26 +38164,186 @@ false,false,5068828181573646,false
 			null,
 			false,
 			null,
-			4199469758556437,
+			9934363989624152,
 			[
 			[
-				19,
-				cr.plugins_.PhonegapDialog.prototype.cnds.ConfirmYesClicked,
+				-1,
+				cr.system_object.prototype.cnds.Every,
 				null,
-				1,
+				0,
 				false,
 				false,
 				false,
-				9847811772109149,
+				5611704619003498,
 				false
+				,[
+				[
+					0,
+					[
+						0,
+						2
+					]
+				]
+				]
 			]
 			],
 			[
 			[
-				20,
-				cr.plugins_.Phonegap.prototype.acts.Close,
+				-1,
+				cr.system_object.prototype.acts.SetVar,
 				null,
-				9342096153153293,
+				1813819429354484,
+				false
+				,[
+				[
+					11,
+					"exit"
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			4647582478218822,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.CompareVar,
+				null,
+				0,
+				false,
+				false,
+				false,
+				8560496145419475,
+				false
+				,[
+				[
+					11,
+					"exit"
+				]
+,				[
+					8,
+					5
+				]
+,				[
+					7,
+					[
+						0,
+						2
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				17,
+				cr.plugins_.Browser.prototype.acts.Close,
+				null,
+				7808678539874434,
+				false
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			476435331124279,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.CompareVar,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3522525703332965,
+				false
+				,[
+				[
+					11,
+					"exit"
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						0,
+						1
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				17,
+				cr.plugins_.Browser.prototype.acts.Blur,
+				null,
+				6630391059314431,
+				false
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			6879767999993711,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.CompareVar,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3142032751195033,
+				false
+				,[
+				[
+					11,
+					"exit"
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			],
+			[
+			[
+				17,
+				cr.plugins_.Browser.prototype.acts.Focus,
+				null,
+				7298944002003741,
 				false
 			]
 			]
@@ -39883,7 +39289,7 @@ false,false,5068828181573646,false
 			],
 			[
 			[
-				22,
+				21,
 				cr.plugins_.AJAX.prototype.acts.Request,
 				null,
 				5765747312219158,
@@ -39915,7 +39321,7 @@ false,false,5068828181573646,false
 			4600422623759844,
 			[
 			[
-				22,
+				21,
 				cr.plugins_.AJAX.prototype.cnds.OnComplete,
 				null,
 				1,
@@ -39964,7 +39370,7 @@ false,false,5068828181573646,false
 							,[
 [
 								20,
-								22,
+								21,
 								cr.plugins_.AJAX.prototype.exps.LastData,
 								true,
 								null
@@ -40005,7 +39411,7 @@ false,false,5068828181573646,false
 						7,
 						[
 							20,
-							22,
+							21,
 							cr.plugins_.AJAX.prototype.exps.LastData,
 							true,
 							null
@@ -40655,8 +40061,8 @@ false,false,5068828181573646,false
 			7075766080642061,
 			[
 			[
-				20,
-				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				17,
+				cr.plugins_.Browser.prototype.cnds.OnBackButton,
 				null,
 				1,
 				false,
@@ -42615,8 +42021,8 @@ false,false,274943258950527,false
 			6600051563521867,
 			[
 			[
-				20,
-				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				17,
+				cr.plugins_.Browser.prototype.cnds.OnBackButton,
 				null,
 				1,
 				false,
@@ -42660,8 +42066,8 @@ false,false,274943258950527,false
 			4549558629170994,
 			[
 			[
-				20,
-				cr.plugins_.Phonegap.prototype.cnds.OnBack,
+				17,
+				cr.plugins_.Browser.prototype.cnds.OnBackButton,
 				null,
 				1,
 				false,
@@ -44099,7 +43505,7 @@ false,false,274943258950527,false
 			],
 			[
 			[
-				25,
+				24,
 				cr.plugins_.PhonegapShortcut.prototype.acts.CreateShortcut,
 				null,
 				7304132810401186,
@@ -44115,7 +43521,7 @@ false,false,274943258950527,false
 				]
 			]
 ,			[
-				21,
+				20,
 				cr.plugins_.TextBox.prototype.acts.SetFocus,
 				null,
 				746019054634538,
@@ -44166,7 +43572,7 @@ false,false,274943258950527,false
 						,[
 [
 							20,
-							21,
+							20,
 							cr.plugins_.TextBox.prototype.exps.Text,
 							true,
 							null
@@ -44210,7 +43616,7 @@ false,false,274943258950527,false
 			],
 			[
 			[
-				22,
+				21,
 				cr.plugins_.AJAX.prototype.acts.Post,
 				null,
 				9731286753563593,
@@ -44233,7 +43639,7 @@ false,false,274943258950527,false
 						]
 						,[
 							20,
-							21,
+							20,
 							cr.plugins_.TextBox.prototype.exps.Text,
 							true,
 							null
@@ -44301,7 +43707,7 @@ false,false,274943258950527,false
 						,[
 [
 							20,
-							21,
+							20,
 							cr.plugins_.TextBox.prototype.exps.Text,
 							true,
 							null
@@ -44455,7 +43861,7 @@ false,false,274943258950527,false
 						,[
 [
 							20,
-							21,
+							20,
 							cr.plugins_.TextBox.prototype.exps.Text,
 							true,
 							null
@@ -44479,7 +43885,7 @@ false,false,274943258950527,false
 			],
 			[
 			[
-				21,
+				20,
 				cr.plugins_.TextBox.prototype.acts.SetText,
 				null,
 				6733625617090127,
@@ -44493,7 +43899,7 @@ false,false,274943258950527,false
 						,[
 [
 							20,
-							21,
+							20,
 							cr.plugins_.TextBox.prototype.exps.Text,
 							true,
 							null
@@ -44517,7 +43923,7 @@ false,false,274943258950527,false
 			3087684840095548,
 			[
 			[
-				22,
+				21,
 				cr.plugins_.AJAX.prototype.cnds.OnComplete,
 				null,
 				1,
@@ -44562,7 +43968,7 @@ false,false,274943258950527,false
 						7,
 						[
 							20,
-							22,
+							21,
 							cr.plugins_.AJAX.prototype.exps.LastData,
 							true,
 							null
@@ -44600,7 +44006,7 @@ false,false,274943258950527,false
 									10,
 									[
 										20,
-										21,
+										20,
 										cr.plugins_.TextBox.prototype.exps.Text,
 										true,
 										null
@@ -44612,7 +44018,7 @@ false,false,274943258950527,false
 								]
 								,[
 									20,
-									21,
+									20,
 									cr.plugins_.TextBox.prototype.exps.Text,
 									true,
 									null
@@ -44627,7 +44033,7 @@ false,false,274943258950527,false
 					]
 				]
 ,				[
-					21,
+					20,
 					cr.plugins_.TextBox.prototype.acts.SetFocus,
 					null,
 					8473888184597508,
@@ -44657,7 +44063,7 @@ false,false,274943258950527,false
 						7,
 						[
 							20,
-							22,
+							21,
 							cr.plugins_.AJAX.prototype.exps.LastData,
 							true,
 							null
@@ -44679,7 +44085,7 @@ false,false,274943258950527,false
 				],
 				[
 				[
-					22,
+					21,
 					cr.plugins_.AJAX.prototype.acts.Post,
 					null,
 					7843160237999941,
@@ -44755,7 +44161,7 @@ false,false,274943258950527,false
 					]
 				]
 ,				[
-					21,
+					20,
 					cr.plugins_.TextBox.prototype.acts.SetEnabled,
 					null,
 					5950412131904591,
@@ -44786,7 +44192,7 @@ false,false,274943258950527,false
 								]
 								,[
 									20,
-									21,
+									20,
 									cr.plugins_.TextBox.prototype.exps.Text,
 									true,
 									null
@@ -44818,7 +44224,7 @@ false,false,274943258950527,false
 						7,
 						[
 							20,
-							21,
+							20,
 							cr.plugins_.TextBox.prototype.exps.Text,
 							true,
 							null
@@ -44902,7 +44308,7 @@ false,false,274943258950527,false
 	false,
 	0,
 	1,
-	139,
+	140,
 	false,
 	true,
 	1,
