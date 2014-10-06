@@ -21742,18 +21742,6 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.Arr,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
 		cr.plugins_.Audio,
 		true,
 		false,
@@ -21766,8 +21754,8 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.WebStorage,
-		true,
+		cr.plugins_.Arr,
+		false,
 		false,
 		false,
 		false,
@@ -21802,18 +21790,6 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.TextBox,
-		false,
-		true,
-		true,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false
-	]
-,	[
 		cr.plugins_.PhonegapShortcut,
 		true,
 		false,
@@ -21823,6 +21799,18 @@ cr.getProjectModel = function() { return [
 		false,
 		false,
 		false,
+		false
+	]
+,	[
+		cr.plugins_.Text,
+		false,
+		true,
+		true,
+		true,
+		true,
+		true,
+		true,
+		true,
 		false
 	]
 ,	[
@@ -21838,15 +21826,27 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.Text,
+		cr.plugins_.TextBox,
 		false,
 		true,
 		true,
 		true,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.WebStorage,
 		true,
-		true,
-		true,
-		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
 		false
 	]
 ,	[
@@ -25071,7 +25071,60 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[60, 550, 0, 600, 100, 0, 0, 1, 0, 0, 0, 0, []],
+				[360, 1110, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				9,
+				123,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					1,
+					1
+				]
+			]
+,			[
+				[360, 563, 0, 720, 150, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				3,
+				104,
+				[
+				],
+				[
+				],
+				[
+					"Start typing..",
+					0,
+					"36pt GeosansLight",
+					"rgb(0,0,0)",
+					1,
+					1,
+					1,
+					0,
+					0
+				]
+			]
+			],
+			[			]
+		]
+,		[
+			"Layer 1",
+			1,
+			9986008357185938,
+			true,
+			[255, 255, 255],
+			true,
+			1,
+			1,
+			1,
+			false,
+			1,
+			0,
+			0,
+			[
+			[
+				[67, 379, 0, 608, 97, 0, 0, 1, 0, 0, 0, 0, []],
 				20,
 				121,
 				[
@@ -25089,21 +25142,6 @@ cr.getProjectModel = function() { return [
 					0,
 					0,
 					""
-				]
-			]
-,			[
-				[360, 1110, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				9,
-				123,
-				[
-				],
-				[
-				],
-				[
-					0,
-					"Default",
-					1,
-					1
 				]
 			]
 			],
@@ -33812,7 +33850,7 @@ false,false,2596508113697225,false
 						1,
 						[
 							2,
-							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
+							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
 						]
 					]
 ,					[
@@ -33880,7 +33918,7 @@ false,false,2596508113697225,false
 							]
 							,[
 								2,
-								"+in+@touchthebubble.+Try+to+beat+my+score%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
+								"+in+@touchthebubble.+Try+to+beat+my+score%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
 							]
 						]
 					]
@@ -33940,7 +33978,7 @@ false,false,2596508113697225,false
 								10,
 								[
 									2,
-									"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=I+just+scored+"
+									"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=I+just+scored+"
 								]
 								,[
 									23,
@@ -36327,6 +36365,13 @@ false,false,5068828181573646,false
 					]
 				]
 				]
+			]
+,			[
+				10,
+				cr.plugins_.WebStorage.prototype.acts.ClearLocal,
+				null,
+				7781185510409895,
+				false
 			]
 ,			[
 				10,
@@ -41529,7 +41574,7 @@ false,false,274943258950527,false
 						1,
 						[
 							2,
-							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
+							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
 						]
 					]
 ,					[
@@ -41584,7 +41629,7 @@ false,false,274943258950527,false
 						1,
 						[
 							2,
-							"https://twitter.com/intent/tweet?text=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
+							"https://twitter.com/intent/tweet?text=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
 						]
 					]
 ,					[
@@ -41639,7 +41684,7 @@ false,false,274943258950527,false
 						1,
 						[
 							2,
-							"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21&redirect_uri=http://facebook.com/"
+							"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21&redirect_uri=http://facebook.com/"
 						]
 					]
 ,					[
@@ -42000,7 +42045,7 @@ false,false,274943258950527,false
 						1,
 						[
 							2,
-							"https://play.google.com/store/apps/details?id=com.fourdesks.touchbubble"
+							"https://play.google.com/store/apps/details?id=com.fourdesks.touchthebubble"
 						]
 					]
 ,					[
@@ -43527,6 +43572,22 @@ false,false,274943258950527,false
 				746019054634538,
 				false
 			]
+,			[
+				20,
+				cr.plugins_.TextBox.prototype.acts.SetHeight,
+				null,
+				3209121345729125,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						200
+					]
+				]
+				]
+			]
 			]
 		]
 ,		[
@@ -44174,39 +44235,6 @@ false,false,274943258950527,false
 					]
 				]
 ,				[
-					4,
-					cr.plugins_.Text.prototype.acts.SetText,
-					null,
-					730748385180595,
-					false
-					,[
-					[
-						7,
-						[
-							10,
-							[
-								10,
-								[
-									2,
-									"Hi "
-								]
-								,[
-									20,
-									20,
-									cr.plugins_.TextBox.prototype.exps.Text,
-									true,
-									null
-								]
-							]
-							,[
-								2,
-								"."
-							]
-						]
-					]
-					]
-				]
-,				[
 					10,
 					cr.plugins_.WebStorage.prototype.acts.StoreLocal,
 					null,
@@ -44288,6 +44316,149 @@ false,false,274943258950527,false
 			]
 			]
 		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			5259111471561124,
+			[
+			[
+				20,
+				cr.plugins_.TextBox.prototype.cnds.OnTextChanged,
+				null,
+				1,
+				false,
+				false,
+				false,
+				9623699730770675,
+				false
+			]
+			],
+			[
+			[
+				3,
+				cr.plugins_.Text.prototype.acts.SetText,
+				null,
+				8360453491034619,
+				false
+				,[
+				[
+					7,
+					[
+						10,
+						[
+							10,
+							[
+								2,
+								"Hello "
+							]
+							,[
+								20,
+								20,
+								cr.plugins_.TextBox.prototype.exps.Text,
+								true,
+								null
+							]
+						]
+						,[
+							2,
+							"."
+						]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			691056141627696,
+			[
+			[
+				-1,
+				cr.system_object.prototype.cnds.EveryTick,
+				null,
+				0,
+				false,
+				false,
+				false,
+				3920290147017314,
+				false
+			]
+			],
+			[
+			[
+				20,
+				cr.plugins_.TextBox.prototype.acts.SetSize,
+				null,
+				8062765418086336,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						600
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						100
+					]
+				]
+				]
+			]
+,			[
+				20,
+				cr.plugins_.TextBox.prototype.acts.SetPos,
+				null,
+				3703727428328864,
+				false
+				,[
+				[
+					0,
+					[
+						0,
+						60
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						350
+					]
+				]
+				]
+			]
+,			[
+				20,
+				cr.plugins_.TextBox.prototype.acts.SetEnabled,
+				null,
+				7968630943983897,
+				false
+				,[
+				[
+					3,
+					1
+				]
+				]
+			]
+,			[
+				20,
+				cr.plugins_.TextBox.prototype.acts.SetFocus,
+				null,
+				9327661513468302,
+				false
+			]
+			]
+		]
 		]
 	]
 	],
@@ -44308,7 +44479,7 @@ false,false,274943258950527,false
 	false,
 	0,
 	1,
-	140,
+	139,
 	false,
 	true,
 	1,
