@@ -33812,7 +33812,7 @@ false,false,2596508113697225,false
 						1,
 						[
 							2,
-							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
 						]
 					]
 ,					[
@@ -33880,7 +33880,7 @@ false,false,2596508113697225,false
 							]
 							,[
 								2,
-								"+in+@touchthebubble.+Try+to+beat+my+score%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+								"+in+@touchthebubble.+Try+to+beat+my+score%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
 							]
 						]
 					]
@@ -33940,7 +33940,7 @@ false,false,2596508113697225,false
 								10,
 								[
 									2,
-									"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=I+just+scored+"
+									"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=I+just+scored+"
 								]
 								,[
 									23,
@@ -41529,7 +41529,7 @@ false,false,274943258950527,false
 						1,
 						[
 							2,
-							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
 						]
 					]
 ,					[
@@ -41584,7 +41584,7 @@ false,false,274943258950527,false
 						1,
 						[
 							2,
-							"https://twitter.com/intent/tweet?text=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+							"https://twitter.com/intent/tweet?text=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
 						]
 					]
 ,					[
@@ -41639,7 +41639,7 @@ false,false,274943258950527,false
 						1,
 						[
 							2,
-							"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21&redirect_uri=http://facebook.com/"
+							"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21&redirect_uri=http://facebook.com/"
 						]
 					]
 ,					[
@@ -42000,7 +42000,7 @@ false,false,274943258950527,false
 						1,
 						[
 							2,
-							"https://play.google.com/store/apps/details?id=com.fourdesks.touchthebubble"
+							"https://play.google.com/store/apps/details?id=com.fourdesks.touchbubble"
 						]
 					]
 ,					[
