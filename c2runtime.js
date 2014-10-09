@@ -21513,6 +21513,249 @@ cr.plugins_.WebStorage = function(runtime)
 }());
 ;
 ;
+cr.plugins_.windowsphone = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.windowsphone.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+	};
+	window.windowsPhoneRuntime = null;
+	window.windowsPhoneInst = null;
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	window["tombstoned"] = false;
+	window["isTrial"] = false;
+	window["deviceMusicPlaying"] = false;
+	instanceProto.onCreate = function()
+	{
+		window.windowsPhoneRuntime = this.runtime;
+		window.windowsPhoneInst = this;
+		this.isWindowsPhone = window['C2IsWinPhone8'];
+		this.isTrial = (this.properties[0] !== 0);
+		this.IAPProducts = {};
+		var self = this;
+		if (this.isWindowsPhone) {
+			setTimeout(function(){
+				window["external"]["notify"]("checkLicense," + self.isTrial);
+				window["external"]["notify"]("isTombstoned");
+				window["external"]["notify"]("gameLoaded");
+			},0);
+		}
+	};
+	instanceProto.draw = function(ctx)
+	{
+	};
+	instanceProto.drawGL = function (glw)
+	{
+	};
+	window["wp_call_OnBack"] = function ()
+	{
+		window.windowsPhoneRuntime.trigger(cr.plugins_.windowsphone.prototype.cnds.OnBack, window.windowsPhoneInst);
+	}
+	window["wp_call_IAPPurchaseSuccess"] = function (productid_)
+	{
+		self.IAPProducts[productid_]["Purchased"] = "True";
+		window.windowsPhoneRuntime.trigger(cr.plugins_.windowsphone.prototype.cnds.IAPPurchaseSuccess, window.windowsPhoneInst);
+	}
+	window["wp_call_IAPPurchaseFail"] = function ()
+	{
+		window.windowsPhoneRuntime.trigger(cr.plugins_.windowsphone.prototype.cnds.IAPPurchaseFail, window.windowsPhoneInst);
+	}
+	window["wp_call_OnStoreListing"] = function (productsJSON_)
+	{
+		var productsJSONRemap = {};
+		for (var i in productsJSON_) {
+			productsJSONRemap[productsJSON_[i]["Key"]] = productsJSON_[i]["Value"];
+		}
+		self.IAPProducts = productsJSONRemap;
+		window.windowsPhoneRuntime.trigger(cr.plugins_.windowsphone.prototype.cnds.OnStoreListing, window.windowsPhoneInst);
+	}
+	function Cnds() {};
+	Cnds.prototype.IsWindowsPhone = function ()
+	{
+		if (this.isWindowsPhone) {
+			return true;
+		} else {
+			return false;
+		}
+	};
+	Cnds.prototype.OnBack = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.IsTombstoned = function ()
+	{
+		if (window["tombstoned"]) {
+			window["tombstoned"] = false;
+			return true;
+		} else {
+			return false;
+		}
+	};
+	Cnds.prototype.IsTrial = function ()
+	{
+		return window["isTrial"];
+	};
+	Cnds.prototype.IAPPurchaseSuccess = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.IAPPurchaseFail = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.HasProduct = function (productid_)
+	{
+		try {
+			if (self.IAPProducts[productid_]["Purchased"] === "True") {
+				return true;
+			} else {
+				return false;
+			}
+		} catch(e) {
+			return false;
+		}
+	};
+	Cnds.prototype.OnStoreListing = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.IsDeviceMusicPlaying = function ()
+	{
+		return window["deviceMusicPlaying"];
+	};
+	pluginProto.cnds = new Cnds();
+	window.run_action = function (action_)
+	{
+		if (window['C2IsWinPhone8'])
+			setTimeout(function(){
+				window["external"]["notify"](action_);
+			},0);
+	}
+	function Acts() {};
+	Acts.prototype.QuitApp = function ()
+	{
+		window.run_action("quitApp")
+	};
+	Acts.prototype.VibrateWP = function (duration_)
+	{
+		window.run_action("vibrate, " + duration_)
+	};
+	Acts.prototype.FlippedTileUpdate = function (title_, backTitle_, backContent_, wideBackContent_, count_, smallBackgroundImage_, backgroundImage_, backBackgroundImage_, wideBackgroundImage_, wideBackBackgroundImage_)
+	{
+		window.run_action(
+			"flippedTileUpdate, " +
+			title_ + ", " +
+			backTitle_ + ", " +
+			backContent_ + ", " +
+			wideBackContent_ + ", " +
+			count_ + ", " +
+			smallBackgroundImage_ + ", " +
+			backgroundImage_ + ", " +
+			backBackgroundImage_ + ", " +
+			wideBackgroundImage_ + ", " +
+			wideBackBackgroundImage_
+		)
+	};
+	Acts.prototype.PlayWPSound = function (fileName_, loop_, volume_, tag_)
+	{
+		window.run_action("playSound, " + fileName_ + ", " + loop_ + ", " + volume_ + ", " + tag_)
+	};
+	Acts.prototype.PlayWPMusic = function (fileName_, loop_, volume_)
+	{
+		window.run_action("playMusic, " + fileName_ + ", " + loop_ + ", " + volume_)
+	};
+	Acts.prototype.StopSound = function (tag_)
+	{
+		window.run_action("stopSound, " + tag_)
+	};
+	Acts.prototype.StopWPMusic = function ()
+	{
+		window.run_action("stopMusic")
+	};
+	/* Purchases */
+	Acts.prototype.RequestTrialStatus = function ()
+	{
+		window.run_action("requestTrialStatus")
+	};
+	Acts.prototype.PurchaseApp = function ()
+	{
+		window.run_action("purchaseApp")
+	};
+	Acts.prototype.PurchaseProduct = function (productID_)
+	{
+		window.run_action("purchaseProduct," + productID_)
+	};
+	Acts.prototype.RequestStoreListing = function ()
+	{
+		window.run_action("requestStoreListing")
+	};
+	/* Tombstoning */
+	Acts.prototype.RequestTombstoneStatus = function ()
+	{
+		window.run_action("requestTombstoneStatus")
+	};
+	/* Rating */
+	Acts.prototype.RateApp = function ()
+	{
+		window.run_action("rateApp")
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+	Exps.prototype.ProductName = function (ret, productId_)
+	{
+		if (this.isWindowsPhone && self.IAPProducts[productId_])
+		{
+			ret.set_string(self.IAPProducts[productId_]["Name"]);
+		}
+		else
+			ret.set_string("");
+	};
+	Exps.prototype.ProductDescription = function (ret, productId_)
+	{
+		if (this.isWindowsPhone && self.IAPProducts[productId_])
+		{
+			ret.set_string(self.IAPProducts[productId_]["Description"]);
+		}
+		else
+			ret.set_string("");
+	};
+	Exps.prototype.ProductFormattedPrice = function (ret, productId_)
+	{
+		if (this.isWindowsPhone && self.IAPProducts[productId_])
+		{
+			ret.set_string(self.IAPProducts[productId_]["FormattedPrice"]);
+		}
+		else
+			ret.set_string("");
+	};
+	Exps.prototype.ProductTag = function (ret, productId_)
+	{
+		if (this.isWindowsPhone && self.IAPProducts[productId_])
+		{
+			ret.set_string(self.IAPProducts[productId_]["Tag"]);
+		}
+		else
+			ret.set_string("");
+	};
+	pluginProto.exps = new Exps();
+}());
+;
+;
 cr.behaviors.Flash = function(runtime)
 {
 	this.runtime = runtime;
@@ -22007,6 +22250,18 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
+		cr.plugins_.PhonegapShortcut,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
 		cr.plugins_.Phonegap,
 		true,
 		false,
@@ -22028,18 +22283,6 @@ cr.getProjectModel = function() { return [
 		true,
 		true,
 		true,
-		false
-	]
-,	[
-		cr.plugins_.PhonegapShortcut,
-		true,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
 		false
 	]
 ,	[
@@ -22067,7 +22310,7 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
-		cr.plugins_.WebStorage,
+		cr.plugins_.windowsphone,
 		true,
 		false,
 		false,
@@ -22080,6 +22323,18 @@ cr.getProjectModel = function() { return [
 	]
 ,	[
 		cr.plugins_.Touch,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
+		cr.plugins_.WebStorage,
 		true,
 		false,
 		false,
@@ -22669,6 +22924,24 @@ cr.getProjectModel = function() { return [
 	]
 ,	[
 		"t26",
+		cr.plugins_.windowsphone,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		4958511053685733,
+		[],
+		null
+		,[0]
+	]
+,	[
+		"t27",
 		cr.plugins_.Text,
 		true,
 		[],
@@ -22686,7 +22959,7 @@ cr.getProjectModel = function() { return [
 	]
 	],
 	[
-		[26,11,8,13,14,5,3,4]
+		[27,11,8,13,14,5,3,4]
 	],
 	[
 	[
@@ -31565,7 +31838,7 @@ false,false,4857271161516644,false
 			null,
 			false,
 			null,
-			4406916183646371,
+			9245116960886696,
 			[
 			[
 				17,
@@ -31575,7 +31848,7 @@ false,false,4857271161516644,false
 				false,
 				false,
 				false,
-				406509312646703,
+				238691477956452,
 				false
 			]
 			],
@@ -31584,14 +31857,14 @@ false,false,4857271161516644,false
 				-1,
 				cr.system_object.prototype.acts.ResetGlobals,
 				null,
-				2603166809160515,
+				5695951720425884,
 				false
 			]
 ,			[
 				-1,
 				cr.system_object.prototype.acts.GoToLayout,
 				null,
-				4812573453395908,
+				8429640529187473,
 				false
 				,[
 				[
@@ -34253,7 +34526,7 @@ false,false,2596508113697225,false
 			null,
 			false,
 			null,
-			9961449587629747,
+			3273552110849378,
 			[
 			[
 				17,
@@ -34263,7 +34536,7 @@ false,false,2596508113697225,false
 				false,
 				false,
 				false,
-				7062564666967323,
+				5942225331823853,
 				false
 			]
 			],
@@ -34272,7 +34545,7 @@ false,false,2596508113697225,false
 				-1,
 				cr.system_object.prototype.acts.GoToLayout,
 				null,
-				2245399586028243,
+				3310589970356613,
 				false
 				,[
 				[
@@ -35515,48 +35788,175 @@ false,false,2596508113697225,false
 			]
 			],
 			[
+			]
+			,[
 			[
-				12,
-				cr.plugins_.Audio.prototype.acts.Play,
+				0,
 				null,
-				9015589316089041,
-				false
-				,[
+				false,
+				null,
+				2505426312820624,
 				[
-					2,
-					["pop",false]
-				]
-,				[
-					3,
-					0
-				]
-,				[
+				[
+					26,
+					cr.plugins_.windowsphone.prototype.cnds.IsWindowsPhone,
+					null,
 					0,
+					false,
+					false,
+					false,
+					4002617917125619,
+					false
+				]
+				],
+				[
+				[
+					26,
+					cr.plugins_.windowsphone.prototype.acts.PlayWPSound,
+					null,
+					8557165584774854,
+					false
+					,[
 					[
-						19,
-						cr.system_object.prototype.exps["int"]
-						,[
-[
-							20,
-							10,
-							cr.plugins_.WebStorage.prototype.exps.LocalValue,
-							true,
-							null
+						1,
+						[
+							2,
+							"media/pop.wav"
+						]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
+						[
+							19,
+							cr.system_object.prototype.exps["int"]
 							,[
 [
-								2,
-								"sound"
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"sound"
+								]
+								]
 							]
 							]
 						]
+					]
+,					[
+						1,
+						[
+							2,
+							""
 						]
+					]
 					]
 				]
 ,				[
-					1,
+					26,
+					cr.plugins_.windowsphone.prototype.acts.VibrateWP,
+					null,
+					9404054772042561,
+					false
+					,[
+					[
+						0,
+						[
+							1,
+							0.5
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				3061604516287606,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Else,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6079850962886065,
+					false
+				]
+				],
+				[
+				[
+					12,
+					cr.plugins_.Audio.prototype.acts.Play,
+					null,
+					9015589316089041,
+					false
+					,[
 					[
 						2,
-						""
+						["pop",false]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
+						[
+							19,
+							cr.system_object.prototype.exps["int"]
+							,[
+[
+								20,
+								10,
+								cr.plugins_.WebStorage.prototype.exps.LocalValue,
+								true,
+								null
+								,[
+[
+									2,
+									"sound"
+								]
+								]
+							]
+							]
+						]
+					]
+,					[
+						1,
+						[
+							2,
+							""
+						]
+					]
+					]
+				]
+,				[
+					17,
+					cr.plugins_.Browser.prototype.acts.Vibrate,
+					null,
+					752939887280277,
+					false
+					,[
+					[
+						1,
+						[
+							2,
+							"50"
+						]
+					]
 					]
 				]
 				]
@@ -35571,7 +35971,7 @@ false,false,2596508113697225,false
 			8884897769229845,
 			[
 			[
-				26,
+				27,
 				cr.plugins_.Text.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -35584,7 +35984,7 @@ false,false,2596508113697225,false
 			],
 			[
 			[
-				26,
+				27,
 				cr.plugins_.Text.prototype.acts.SetWebFont,
 				null,
 				1201840936439848,
@@ -36399,61 +36799,6 @@ false,false,2596508113697225,false
 			]
 			]
 		]
-,		[
-			0,
-			null,
-			false,
-			null,
-			8254760085687054,
-			[
-			[
-				1,
-				cr.plugins_.Touch.prototype.cnds.OnTouchStart,
-				null,
-				1,
-				false,
-				false,
-				false,
-				4708924759281119,
-				false
-			]
-,			[
-				1,
-				cr.plugins_.Touch.prototype.cnds.IsTouchingObject,
-				null,
-				0,
-				false,
-				false,
-				false,
-				1029369521011046,
-				false
-				,[
-				[
-					4,
-					0
-				]
-				]
-			]
-			],
-			[
-			[
-				17,
-				cr.plugins_.Browser.prototype.acts.Vibrate,
-				null,
-				752939887280277,
-				false
-				,[
-				[
-					1,
-					[
-						2,
-						"50"
-					]
-				]
-				]
-			]
-			]
-		]
 		]
 	]
 ,	[
@@ -36612,13 +36957,6 @@ false,false,5068828181573646,false
 					]
 				]
 				]
-			]
-,			[
-				10,
-				cr.plugins_.WebStorage.prototype.acts.ClearLocal,
-				null,
-				7781185510409895,
-				false
 			]
 ,			[
 				10,
@@ -38478,6 +38816,34 @@ false,false,5068828181573646,false
 				]
 				]
 			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.CompareVar,
+				null,
+				0,
+				false,
+				false,
+				false,
+				7506700493148669,
+				false
+				,[
+				[
+					11,
+					"exit"
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						0,
+						1
+					]
+				]
+				]
+			]
 			],
 			[
 			[
@@ -38539,12 +38905,65 @@ false,false,5068828181573646,false
 			]
 			],
 			[
+			]
+			,[
 			[
-				17,
-				cr.plugins_.Browser.prototype.acts.Close,
+				0,
 				null,
-				7808678539874434,
-				false
+				false,
+				null,
+				7434971023784418,
+				[
+				[
+					26,
+					cr.plugins_.windowsphone.prototype.cnds.IsWindowsPhone,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3052725507398857,
+					false
+				]
+				],
+				[
+				[
+					26,
+					cr.plugins_.windowsphone.prototype.acts.QuitApp,
+					null,
+					9682066864975159,
+					false
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				null,
+				8878265047370334,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Else,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3656485942751129,
+					false
+				]
+				],
+				[
+				[
+					17,
+					cr.plugins_.Browser.prototype.acts.Close,
+					null,
+					7808678539874434,
+					false
+				]
+				]
 			]
 			]
 		]
@@ -40350,7 +40769,7 @@ false,false,5068828181573646,false
 			null,
 			false,
 			null,
-			7075766080642061,
+			1873264387637003,
 			[
 			[
 				17,
@@ -40360,7 +40779,7 @@ false,false,5068828181573646,false
 				false,
 				false,
 				false,
-				5893588006990832,
+				7472533259684112,
 				false
 			]
 			],
@@ -40369,7 +40788,7 @@ false,false,5068828181573646,false
 				-1,
 				cr.system_object.prototype.acts.GoToLayout,
 				null,
-				7091724147765587,
+				9738169399176477,
 				false
 				,[
 				[
@@ -41810,23 +42229,89 @@ false,false,274943258950527,false
 				]
 				],
 				[
+				]
+				,[
 				[
-					17,
-					cr.plugins_.Browser.prototype.acts.GoToURL,
+					0,
 					null,
-					7862008442808178,
-					false
-					,[
+					false,
+					null,
+					5695886925587292,
 					[
-						1,
+					[
+						26,
+						cr.plugins_.windowsphone.prototype.cnds.IsWindowsPhone,
+						null,
+						0,
+						false,
+						false,
+						false,
+						7336935557939993,
+						false
+					]
+					],
+					[
+					[
+						17,
+						cr.plugins_.Browser.prototype.acts.GoToURL,
+						null,
+						2501731479788666,
+						false
+						,[
 						[
-							2,
-							"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+							1,
+							[
+								2,
+								"https://plus.google.com/share?url=http%3A%2F%2Fwww.windowsphone.com%2Fs%3Fappid%3De1af5d52-bba6-47a2-b57f-c29dbd7854d4"
+							]
+						]
+,						[
+							3,
+							2
+						]
 						]
 					]
-,					[
-						3,
-						2
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					null,
+					1135034753482789,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.Else,
+						null,
+						0,
+						false,
+						false,
+						false,
+						9187371181541655,
+						false
+					]
+					],
+					[
+					[
+						17,
+						cr.plugins_.Browser.prototype.acts.GoToURL,
+						null,
+						2327915092988037,
+						false
+						,[
+						[
+							1,
+							[
+								2,
+								"https://plus.google.com/share?url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
+							]
+						]
+,						[
+							3,
+							2
+						]
+						]
 					]
 					]
 				]
@@ -41865,23 +42350,89 @@ false,false,274943258950527,false
 				]
 				],
 				[
+				]
+				,[
 				[
-					17,
-					cr.plugins_.Browser.prototype.acts.GoToURL,
+					0,
 					null,
-					7842433326174502,
-					false
-					,[
+					false,
+					null,
+					4568821287024595,
 					[
-						1,
+					[
+						26,
+						cr.plugins_.windowsphone.prototype.cnds.IsWindowsPhone,
+						null,
+						0,
+						false,
+						false,
+						false,
+						6209432345231811,
+						false
+					]
+					],
+					[
+					[
+						17,
+						cr.plugins_.Browser.prototype.acts.GoToURL,
+						null,
+						9786612230981317,
+						false
+						,[
 						[
-							2,
-							"https://twitter.com/intent/tweet?text=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble"
+							1,
+							[
+								2,
+								"https://twitter.com/intent/tweet?text=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21%0A%0Ahttp%3A%2F%2Fwww.windowsphone.com%2Fs%3Fappid%3De1af5d52-bba6-47a2-b57f-c29dbd7854d4"
+							]
+						]
+,						[
+							3,
+							2
+						]
 						]
 					]
-,					[
-						3,
-						2
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					null,
+					8276216766380613,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.Else,
+						null,
+						0,
+						false,
+						false,
+						false,
+						3653309863516873,
+						false
+					]
+					],
+					[
+					[
+						17,
+						cr.plugins_.Browser.prototype.acts.GoToURL,
+						null,
+						7842433326174502,
+						false
+						,[
+						[
+							1,
+							[
+								2,
+								"https://twitter.com/intent/tweet?text=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21%0A%0Ahttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble"
+							]
+						]
+,						[
+							3,
+							2
+						]
+						]
 					]
 					]
 				]
@@ -41920,23 +42471,89 @@ false,false,274943258950527,false
 				]
 				],
 				[
+				]
+				,[
 				[
-					17,
-					cr.plugins_.Browser.prototype.acts.GoToURL,
+					0,
 					null,
-					5750287710418075,
-					false
-					,[
+					false,
+					null,
+					9112319139737734,
 					[
-						1,
+					[
+						26,
+						cr.plugins_.windowsphone.prototype.cnds.IsWindowsPhone,
+						null,
+						0,
+						false,
+						false,
+						false,
+						7112556492192353,
+						false
+					]
+					],
+					[
+					[
+						17,
+						cr.plugins_.Browser.prototype.acts.GoToURL,
+						null,
+						4796488357513574,
+						false
+						,[
 						[
-							2,
-							"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchthebubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21&redirect_uri=http://facebook.com/"
+							1,
+							[
+								2,
+								"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fdev.windowsphone.com%2Fen-us%2FApplicationDetails%3FproductId%3De1af5d52-bba6-47a2-b57f-c29dbd7854d4&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21&redirect_uri=http://facebook.com/"
+							]
+						]
+,						[
+							3,
+							2
+						]
 						]
 					]
-,					[
-						3,
-						2
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					null,
+					4915968452206643,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.Else,
+						null,
+						0,
+						false,
+						false,
+						false,
+						9300223568174679,
+						false
+					]
+					],
+					[
+					[
+						17,
+						cr.plugins_.Browser.prototype.acts.GoToURL,
+						null,
+						5750287710418075,
+						false
+						,[
+						[
+							1,
+							[
+								2,
+								"https://www.facebook.com/dialog/feed?app_id=344098005768397\n&link=https%3A%2F%2Fwww.facebook.com%2Fsharer%2Fsharer.php%3Fu%3Dhttps%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.fourdesks.touchbubble&picture=http%3A%2F%2Fwww.fourdesks.com%2Ftouchthebubble%2Flogobig.png&name=Touch+The+Bubble&description=Download+this+awesome+Eye+Hand+coordination+game+Touch+The+Bubble%21&redirect_uri=http://facebook.com/"
+							]
+						]
+,						[
+							3,
+							2
+						]
+						]
 					]
 					]
 				]
@@ -42281,23 +42898,76 @@ false,false,274943258950527,false
 				]
 				],
 				[
+				]
+				,[
 				[
-					17,
-					cr.plugins_.Browser.prototype.acts.GoToURL,
+					0,
 					null,
-					1409619847619752,
-					false
-					,[
+					false,
+					null,
+					8845126305468291,
 					[
-						1,
-						[
-							2,
-							"https://play.google.com/store/apps/details?id=com.fourdesks.touchthebubble"
-						]
+					[
+						26,
+						cr.plugins_.windowsphone.prototype.cnds.IsWindowsPhone,
+						null,
+						0,
+						false,
+						false,
+						false,
+						2655980357358135,
+						false
 					]
-,					[
-						3,
-						2
+					],
+					[
+					[
+						26,
+						cr.plugins_.windowsphone.prototype.acts.RateApp,
+						null,
+						7219101151760845,
+						false
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					null,
+					2609671743807876,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.Else,
+						null,
+						0,
+						false,
+						false,
+						false,
+						8080382610364824,
+						false
+					]
+					],
+					[
+					[
+						17,
+						cr.plugins_.Browser.prototype.acts.GoToURL,
+						null,
+						1409619847619752,
+						false
+						,[
+						[
+							1,
+							[
+								2,
+								"https://play.google.com/store/apps/details?id=com.fourdesks.touchbubble"
+							]
+						]
+,						[
+							3,
+							2
+						]
+						]
 					]
 					]
 				]
@@ -42349,41 +43019,6 @@ false,false,274943258950527,false
 			2,
 			"Global",
 			false
-		]
-,		[
-			0,
-			null,
-			false,
-			null,
-			4549558629170994,
-			[
-			[
-				17,
-				cr.plugins_.Browser.prototype.cnds.OnBackButton,
-				null,
-				1,
-				false,
-				false,
-				false,
-				1749815072274118,
-				false
-			]
-			],
-			[
-			[
-				-1,
-				cr.system_object.prototype.acts.GoToLayout,
-				null,
-				2978005396074812,
-				false
-				,[
-				[
-					6,
-					"Menu"
-				]
-				]
-			]
-			]
 		]
 ,		[
 			0,
@@ -43771,6 +44406,41 @@ false,false,274943258950527,false
 			]
 			]
 		]
+,		[
+			0,
+			null,
+			false,
+			null,
+			2047898094854584,
+			[
+			[
+				17,
+				cr.plugins_.Browser.prototype.cnds.OnBackButton,
+				null,
+				1,
+				false,
+				false,
+				false,
+				3637260524903241,
+				false
+			]
+			],
+			[
+			[
+				-1,
+				cr.system_object.prototype.acts.GoToLayout,
+				null,
+				8066337351287476,
+				false
+				,[
+				[
+					6,
+					"Menu"
+				]
+				]
+			]
+			]
+		]
 		]
 	]
 ,	[
@@ -45027,7 +45697,7 @@ false,false,274943258950527,false
 	true,
 	true,
 	true,
-	"1.0.1.8",
+	"1.0.2.0",
 	true,
 	false,
 	0,
